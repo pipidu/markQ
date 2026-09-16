@@ -16,6 +16,8 @@ data class WebDavConfig(
     val baseUrl: String,
     val username: String,
     val password: String,
+    /** User-entered WebDAV server URL (e.g. https://dav.jianguoyun.com/dav/). Never MKCOL this path. */
+    val davRoot: String,
 )
 
 data class DavResource(
@@ -47,24 +49,22 @@ class WebDavClient(
 
     fun ensureLayout(config: WebDavConfig) {
         ensurePath(config, join(config.baseUrl))
-        mkcolIfNeeded(config, entriesUrl(config))
-        mkcolIfNeeded(config, filesUrl(config))
+        ensurePath(config, entriesUrl(config))
+        ensurePath(config, filesUrl(config))
     }
 
     fun ensurePath(config: WebDavConfig, target: HttpUrl) {
-        val origin = target.newBuilder().encodedPath("/").query(null).fragment(null).build()
-        var current = origin
-        for (segment in target.pathSegments.filter { it.isNotEmpty() }) {
-            current = current.newBuilder().addPathSegment(segment).build()
-            mkcolIfNeeded(config, current)
+        for (url in collectionsToMkcol(config.davRoot, target)) {
+            mkcolIfNeeded(config, url)
         }
     }
 
     fun mkcolIfNeeded(config: WebDavConfig, url: HttpUrl) {
+        if (shouldSkipMkcol(config.davRoot, url)) return
         val request = authorized(config, Request.Builder().url(url).method("MKCOL", ByteArray(0).toRequestBody(null)))
         http.newCall(request).execute().use { response ->
             when (response.code) {
-                201, 405, 301, 302, 409 -> Unit
+                201, 403, 405, 301, 302, 307, 308, 409 -> Unit
                 in 200..299 -> Unit
                 else -> throw WebDavException("MKCOL ${url.encodedPath} failed (${response.code})", response.code)
             }
@@ -250,5 +250,52 @@ class WebDavClient(
         }
 
         fun cursorKey(url: HttpUrl): String = url.encodedPath
+
+        fun davRootUrl(davRoot: String): HttpUrl {
+            val trimmed = davRoot.trim().ifBlank { error("davRoot") }
+            val withSlash = if (trimmed.endsWith("/")) trimmed else "$trimmed/"
+            return withSlash.toHttpUrl()
+        }
+
+        /**
+         * Collections to MKCOL for [target], skipping the DAV root (e.g. `/dav`) and `/`.
+         * For Nutstore `https://dav.jianguoyun.com/dav/` + save dir `MarkQ`, this is only `…/dav/MarkQ`.
+         */
+        fun collectionsToMkcol(davRoot: String, target: HttpUrl): List<HttpUrl> {
+            val root = davRootUrl(davRoot)
+            val rootSegs = root.pathSegments.filter { it.isNotEmpty() }
+            val targetSegs = target.pathSegments.filter { it.isNotEmpty() }
+            val extra = if (
+                targetSegs.size >= rootSegs.size &&
+                targetSegs.take(rootSegs.size).map { it.lowercase() } == rootSegs.map { it.lowercase() }
+            ) {
+                targetSegs.drop(rootSegs.size)
+            } else {
+                targetSegs
+            }
+            if (extra.isEmpty()) return emptyList()
+            val start = if (
+                targetSegs.size >= rootSegs.size &&
+                targetSegs.take(rootSegs.size).map { it.lowercase() } == rootSegs.map { it.lowercase() }
+            ) {
+                root.newBuilder().query(null).fragment(null).build()
+            } else {
+                target.newBuilder().encodedPath("/").query(null).fragment(null).build()
+            }
+            var current = start
+            return extra.map { segment ->
+                current = current.newBuilder().addPathSegment(segment).build()
+                current
+            }
+        }
+
+        /** Never MKCOL `/`, the DAV root (`/dav`), or any prefix of the DAV root. */
+        fun shouldSkipMkcol(davRoot: String, url: HttpUrl): Boolean {
+            val urlSegs = url.pathSegments.filter { it.isNotEmpty() }
+            if (urlSegs.isEmpty()) return true
+            val rootSegs = davRootUrl(davRoot).pathSegments.filter { it.isNotEmpty() }
+            if (urlSegs.size > rootSegs.size) return false
+            return urlSegs.map { it.lowercase() } == rootSegs.take(urlSegs.size).map { it.lowercase() }
+        }
     }
 }

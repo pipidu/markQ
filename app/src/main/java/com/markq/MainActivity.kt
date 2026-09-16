@@ -5,9 +5,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -19,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -59,6 +65,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                LaunchedEffect(update.error) {
+                    val msg = update.error ?: return@LaunchedEffect
+                    snackbar.showSnackbar(msg)
+                    main.consumeUpdateMessage()
+                }
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { SnackbarHost(snackbar) },
@@ -84,15 +96,36 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (update.readyToInstall) {
-                    val version = update.info?.version.orEmpty()
+                if (update.showUpdateDialog) {
+                    val version = update.versionLabel
                     AlertDialog(
                         onDismissRequest = { main.dismissUpdate() },
                         title = { Text(stringResource(R.string.update_available_title)) },
-                        text = { Text(stringResource(R.string.update_available_body, version)) },
+                        text = {
+                            Column(Modifier.fillMaxWidth()) {
+                                if (update.downloading) {
+                                    Text(stringResource(R.string.update_available_downloading, version))
+                                    Spacer(Modifier.height(12.dp))
+                                    if (update.downloadTotal > 0L) {
+                                        LinearProgressIndicator(
+                                            progress = { update.progressPercent / 100f },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(stringResource(R.string.update_download_percent, update.progressPercent))
+                                    } else {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    }
+                                } else {
+                                    Text(stringResource(R.string.update_available_body, version))
+                                }
+                            }
+                        },
                         confirmButton = {
-                            TextButton(onClick = { main.installUpdate(context) }) {
-                                Text(stringResource(R.string.update_install))
+                            if (update.readyToInstall) {
+                                TextButton(onClick = { main.installUpdate(context) }) {
+                                    Text(stringResource(R.string.update_install))
+                                }
                             }
                         },
                         dismissButton = {
@@ -104,5 +137,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (application as MarkQApplication).container.updateManager.retryPendingInstall(this)
     }
 }

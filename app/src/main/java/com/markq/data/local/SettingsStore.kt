@@ -23,6 +23,13 @@ data class AppSettings(
     val hasServer: Boolean get() = webdavUrl.isNotBlank()
     val isConfigured: Boolean get() = hasNickname && hasServer
     val collectionUrl: String get() = com.markq.core.NutstoreDav.collectionUrl(webdavUrl, remoteDir)
+
+    fun toWebDavConfig() = com.markq.data.remote.WebDavConfig(
+        baseUrl = collectionUrl,
+        username = username,
+        password = password,
+        davRoot = webdavUrl.ifBlank { collectionUrl },
+    )
 }
 
 class SettingsStore(context: Context) {

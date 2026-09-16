@@ -53,6 +53,8 @@
     <string name="update_available_title">发现新版本</string>
     <string name="update_available_body">MarkQ %1$s 已在应用内下载完成，是否安装？</string>
     <string name="update_available_downloading">正在下载 MarkQ %1$s…</string>
+    <string name="update_download_percent">已下载 %1$d%%</string>
+    <string name="allow_unknown_sources">请允许 MarkQ 安装未知应用，返回后将继续安装。</string>
     <string name="update_install">安装</string>
     <string name="update_later">以后再说</string>
     <string name="update_ready">新版本 %1$s 已下载，可安装。</string>

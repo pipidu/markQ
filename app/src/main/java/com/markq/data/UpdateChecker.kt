@@ -45,11 +45,23 @@ data class UpdateInfo(
 data class UpdateUiState(
     val checking: Boolean = false,
     val downloading: Boolean = false,
+    val downloadBytes: Long = 0L,
+    val downloadTotal: Long = 0L,
+    val downloadVersion: String? = null,
     val info: UpdateInfo? = null,
     val error: String? = null,
     val userInitiated: Boolean = false,
+    val dialogDismissed: Boolean = false,
 ) {
     val readyToInstall: Boolean get() = info?.apk?.exists() == true
+    val showUpdateDialog: Boolean get() = !dialogDismissed && (downloading || readyToInstall)
+    val progressPercent: Int
+        get() = if (downloadTotal > 0L) {
+            ((downloadBytes * 100L) / downloadTotal).toInt().coerceIn(0, 100)
+        } else {
+            0
+        }
+    val versionLabel: String get() = info?.version ?: downloadVersion.orEmpty()
 }
 
 class UpdateChecker(
@@ -58,7 +70,10 @@ class UpdateChecker(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun checkAndDownload(): UpdateInfo? = withContext(Dispatchers.IO) {
+    suspend fun checkAndDownload(
+        onNewerVersion: (String) -> Unit = {},
+        onProgress: (bytes: Long, total: Long) -> Unit = { _, _ -> },
+    ): UpdateInfo? = withContext(Dispatchers.IO) {
         val metaUrl = "https://api.github.com/repos/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/latest"
         val request = Request.Builder()
             .url(metaUrl)
@@ -81,11 +96,12 @@ class UpdateChecker(
         val apkUrl = asset.browserDownloadUrl.ifBlank {
             "https://github.com/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/download/$tag/MarkQ-$version.apk"
         }
-        val apk = downloadApk(apkUrl)
+        onNewerVersion(version)
+        val apk = downloadApk(apkUrl, onProgress)
         UpdateInfo(version = version, apk = apk)
     }
 
-    private fun downloadApk(apkUrl: String): File {
+    private fun downloadApk(apkUrl: String, onProgress: (Long, Long) -> Unit): File {
         val dest = File(app.cacheDir, "markq-update.apk")
         val request = Request.Builder()
             .url(apkUrl)
@@ -97,7 +113,20 @@ class UpdateChecker(
                 error(app.getString(R.string.error_update_download, response.code))
             }
             val body = response.body ?: error(app.getString(R.string.error_update_empty))
-            dest.outputStream().use { out -> body.byteStream().copyTo(out) }
+            val total = body.contentLength()
+            dest.outputStream().use { out ->
+                body.byteStream().use { input ->
+                    val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var read = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        read += n
+                        onProgress(read, total)
+                    }
+                }
+            }
         }
         if (dest.length() == 0L) {
             dest.delete()
@@ -131,6 +160,7 @@ class UpdateManager(
     private val _state = MutableStateFlow(UpdateUiState())
     val state: StateFlow<UpdateUiState> = _state.asStateFlow()
     @Volatile private var started = false
+    @Volatile private var pendingInstall = false
 
     fun startOnLaunch() {
         if (started) return
@@ -144,15 +174,48 @@ class UpdateManager(
 
     suspend fun checkAndDownload(userInitiated: Boolean = false): UpdateInfo? = mutex.withLock {
         _state.update {
-            it.copy(checking = true, downloading = false, error = null, userInitiated = userInitiated)
+            it.copy(
+                checking = true,
+                downloading = false,
+                downloadBytes = 0L,
+                downloadTotal = 0L,
+                downloadVersion = null,
+                error = null,
+                userInitiated = userInitiated,
+                dialogDismissed = false,
+            )
         }
         return try {
-            val info = checker.checkAndDownload()
+            val info = checker.checkAndDownload(
+                onNewerVersion = { version ->
+                    _state.update {
+                        it.copy(
+                            checking = false,
+                            downloading = true,
+                            downloadVersion = version,
+                            downloadBytes = 0L,
+                            downloadTotal = 0L,
+                            userInitiated = userInitiated,
+                        )
+                    }
+                },
+                onProgress = { bytes, total ->
+                    _state.update {
+                        it.copy(
+                            checking = false,
+                            downloading = true,
+                            downloadBytes = bytes,
+                            downloadTotal = total,
+                        )
+                    }
+                },
+            )
             _state.update {
                 it.copy(
                     checking = false,
                     downloading = false,
                     info = info,
+                    downloadVersion = info?.version ?: it.downloadVersion,
                     userInitiated = userInitiated,
                     error = if (userInitiated && info == null) {
                         app.getString(R.string.already_latest, BuildConfig.VERSION_NAME)
@@ -181,6 +244,17 @@ class UpdateManager(
 
     fun install(context: Context) {
         val apk = _state.value.info?.apk ?: return
+        if (!ApkInstaller.canInstallPackages(context)) {
+            pendingInstall = true
+            val intent = ApkInstaller.unknownSourcesIntent(context)
+            if (context !is android.app.Activity) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            _state.update { it.copy(error = app.getString(R.string.allow_unknown_sources)) }
+            return
+        }
+        pendingInstall = false
         try {
             ApkInstaller.install(context, apk)
         } catch (e: Exception) {
@@ -188,8 +262,14 @@ class UpdateManager(
         }
     }
 
+    fun retryPendingInstall(context: Context) {
+        if (!pendingInstall) return
+        if (!ApkInstaller.canInstallPackages(context)) return
+        install(context)
+    }
+
     fun dismiss() {
-        _state.update { it.copy(info = null, downloading = false, checking = false) }
+        _state.update { it.copy(dialogDismissed = true) }
     }
 
     fun consumeError() {

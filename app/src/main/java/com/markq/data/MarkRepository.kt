@@ -49,6 +49,7 @@ class MarkRepository(
             baseUrl = com.markq.core.NutstoreDav.collectionUrl(url, remoteDir),
             username = username,
             password = password,
+            davRoot = url,
         )
         sync.testConnection(config)
         settings.saveServer(nickname, url, username, password, remoteDir)

@@ -29,6 +29,9 @@ data class SettingsForm(
     val message: String? = null,
     val update: UpdateInfo? = null,
     val checkingUpdate: Boolean = false,
+    val downloading: Boolean = false,
+    val downloadPercent: Int = 0,
+    val downloadIndeterminate: Boolean = false,
     val nicknameError: Boolean = false,
 )
 
@@ -76,10 +79,14 @@ class SettingsViewModel(
                 _form.update {
                     it.copy(
                         checkingUpdate = st.userInitiated && (st.checking || st.downloading),
+                        downloading = st.downloading,
+                        downloadPercent = st.progressPercent,
+                        downloadIndeterminate = st.downloading && st.downloadTotal <= 0L,
                         update = st.info,
                         message = when {
                             !st.userInitiated -> it.message
-                            st.checking || st.downloading -> app.getString(R.string.checking_updates)
+                            st.downloading -> app.getString(R.string.downloading_update)
+                            st.checking -> app.getString(R.string.checking_updates)
                             st.info != null -> app.getString(R.string.update_ready, st.info.version)
                             else -> st.error ?: it.message
                         },

@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -137,9 +138,25 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    if (form.checkingUpdate) stringResource(R.string.checking_updates)
-                    else stringResource(R.string.check_for_updates),
+                    when {
+                        form.downloading -> stringResource(R.string.downloading_update)
+                        form.checkingUpdate -> stringResource(R.string.checking_updates)
+                        else -> stringResource(R.string.check_for_updates)
+                    },
                 )
+            }
+            if (form.downloading) {
+                Spacer(Modifier.height(8.dp))
+                if (form.downloadIndeterminate) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearProgressIndicator(
+                        progress = { form.downloadPercent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.update_download_percent, form.downloadPercent))
+                }
             }
             val update = form.update
             if (update != null) {

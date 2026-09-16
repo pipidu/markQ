@@ -48,7 +48,7 @@ class SyncEngine(
     suspend fun sync(): Result<Unit> = mutex.withLock {
         val cfg = settings.current()
         if (!cfg.isConfigured) return Result.success(Unit)
-        val config = WebDavConfig(cfg.collectionUrl, cfg.username, cfg.password)
+        val config = cfg.toWebDavConfig()
         _state.value = _state.value.copy(running = true, error = null)
         try {
             withContext(Dispatchers.IO) {
@@ -86,7 +86,7 @@ class SyncEngine(
     }
 
     private suspend fun pullAttachments(config: WebDavConfig, remote: MarkEntry) {
-        dav.mkcolIfNeeded(config, WebDavClient.join(config.baseUrl, "files", remote.id))
+        dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", remote.id))
         for (att in remote.attachments) {
             val local = files.file(remote.id, att.id)
             val existing = attachments.forEntry(remote.id).firstOrNull { it.id == att.id }
@@ -172,7 +172,7 @@ class SyncEngine(
     }
 
     private suspend fun pushAttachments(config: WebDavConfig, row: com.markq.data.local.EntryWithAttachments) {
-        dav.mkcolIfNeeded(config, WebDavClient.join(config.baseUrl, "files", row.entry.id))
+        dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", row.entry.id))
         for (att in row.attachments.filter { it.dirty }) {
             val bytes = files.readBytes(row.entry.id, att.id) ?: continue
             val url = dav.attachmentUrl(config, row.entry.id, att.id)

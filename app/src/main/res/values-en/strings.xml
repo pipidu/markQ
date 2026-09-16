@@ -53,6 +53,8 @@
     <string name="update_available_title">Update available</string>
     <string name="update_available_body">MarkQ %1$s has been downloaded in the app. Install it now?</string>
     <string name="update_available_downloading">Downloading MarkQ %1$s…</string>
+    <string name="update_download_percent">Downloaded %1$d%%</string>
+    <string name="allow_unknown_sources">Allow MarkQ to install unknown apps, then return to continue.</string>
     <string name="update_install">Install</string>
     <string name="update_later">Later</string>
     <string name="update_ready">Update %1$s is downloaded and ready to install.</string>

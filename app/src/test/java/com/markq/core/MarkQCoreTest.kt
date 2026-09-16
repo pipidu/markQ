@@ -148,6 +148,90 @@ class WebDavCursorTest {
     }
 }
 
+class WebDavMkcolTest {
+    private val nutstore = "https://dav.jianguoyun.com/dav/"
+
+    @Test
+    fun skipsDavRootAndCreatesSaveFolder() {
+        val urls = com.markq.data.remote.WebDavClient.collectionsToMkcol(
+            nutstore,
+            "https://dav.jianguoyun.com/dav/MarkQ/".toHttpUrl(),
+        )
+        assertEquals(
+            listOf(listOf("dav", "MarkQ")),
+            urls.map { it.pathSegments.filter { segment -> segment.isNotEmpty() } },
+        )
+        assertTrue(urls.none { com.markq.data.remote.WebDavClient.shouldSkipMkcol(nutstore, it) })
+    }
+
+    @Test
+    fun emptySaveDirDoesNotMkcolDavRoot() {
+        val urls = com.markq.data.remote.WebDavClient.collectionsToMkcol(
+            nutstore,
+            "https://dav.jianguoyun.com/dav/".toHttpUrl(),
+        )
+        assertTrue(urls.isEmpty())
+    }
+
+    @Test
+    fun nestedEntriesAfterSaveFolder() {
+        val urls = com.markq.data.remote.WebDavClient.collectionsToMkcol(
+            nutstore,
+            "https://dav.jianguoyun.com/dav/MarkQ/entries/".toHttpUrl(),
+        )
+        assertEquals(
+            listOf(
+                listOf("dav", "MarkQ"),
+                listOf("dav", "MarkQ", "entries"),
+            ),
+            urls.map { it.pathSegments.filter { segment -> segment.isNotEmpty() } },
+        )
+    }
+
+    @Test
+    fun skipsDavRootAndSlash() {
+        assertTrue(
+            com.markq.data.remote.WebDavClient.shouldSkipMkcol(
+                nutstore,
+                "https://dav.jianguoyun.com/dav/".toHttpUrl(),
+            ),
+        )
+        assertTrue(
+            com.markq.data.remote.WebDavClient.shouldSkipMkcol(
+                nutstore,
+                "https://dav.jianguoyun.com/".toHttpUrl(),
+            ),
+        )
+        assertFalse(
+            com.markq.data.remote.WebDavClient.shouldSkipMkcol(
+                nutstore,
+                "https://dav.jianguoyun.com/dav/MarkQ/".toHttpUrl(),
+            ),
+        )
+        assertFalse(
+            com.markq.data.remote.WebDavClient.shouldSkipMkcol(
+                nutstore,
+                "https://dav.jianguoyun.com/dav/MarkQ/entries/".toHttpUrl(),
+            ),
+        )
+    }
+}
+
+class UpdateProgressTest {
+    @Test
+    fun computesPercentFromBytes() {
+        val state = com.markq.data.UpdateUiState(
+            downloading = true,
+            downloadBytes = 25L,
+            downloadTotal = 100L,
+            downloadVersion = "1.0.3",
+        )
+        assertEquals(25, state.progressPercent)
+        assertTrue(state.showUpdateDialog)
+        assertEquals("1.0.3", state.versionLabel)
+    }
+}
+
 class ApkFileTest {
     @Test
     fun acceptsZipMagic() {
