@@ -514,3 +514,46 @@ class MarkListVisibilityTest {
         assertFalse(MarkListVisibility.include(false, listOf("home"), MarkListFilter.Tag("work")))
     }
 }
+
+class DnsWireTest {
+    @Test
+    fun ipLiteralsDoNotNeedDns() {
+        assertEquals("223.5.5.5", DnsWire.parseLiteral("223.5.5.5")?.hostAddress)
+        assertEquals(null, DnsWire.parseLiteral("dav.jianguoyun.com"))
+        assertEquals(null, DnsWire.parseLiteral("localhost"))
+        assertTrue(DnsWire.isIpLiteral("8.8.8.8"))
+        assertFalse(DnsWire.isIpLiteral("nominatim.openstreetmap.org"))
+    }
+
+    @Test
+    fun parsesARecordFromCompressedAnswer() {
+        val query = DnsWire.query(0x1234, "example.com", DnsWire.TYPE_A)
+        val extra = byteArrayOf(
+            0xC0.toByte(), 0x0C,
+            0x00, 0x01,
+            0x00, 0x01,
+            0x00, 0x00, 0x00, 0x3C,
+            0x00, 0x04,
+            93, 184.toByte(), 216.toByte(), 34,
+        )
+        val msg = ByteArray(query.size + extra.size)
+        System.arraycopy(query, 0, msg, 0, query.size)
+        System.arraycopy(extra, 0, msg, query.size, extra.size)
+        msg[2] = 0x81.toByte()
+        msg[3] = 0x80.toByte()
+        msg[6] = 0
+        msg[7] = 1
+        val parsed = DnsWire.parseAnswers(msg, "example.com")
+        assertEquals("93.184.216.34", parsed.addresses.single().hostAddress)
+        assertEquals(60, parsed.ttlSec)
+    }
+
+    @Test
+    fun nxDomainYieldsNoAddresses() {
+        val query = DnsWire.query(0x22, "missing.example", DnsWire.TYPE_A)
+        query[2] = 0x81.toByte()
+        query[3] = 0x83.toByte() // NXDOMAIN
+        val parsed = DnsWire.parseAnswers(query, "missing.example")
+        assertTrue(parsed.addresses.isEmpty())
+    }
+}

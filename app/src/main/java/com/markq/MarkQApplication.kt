@@ -18,6 +18,7 @@ import com.markq.data.local.MIGRATION_4_5
 import com.markq.data.local.MarkDatabase
 import com.markq.data.local.PlaceNameResolver
 import com.markq.data.local.SettingsStore
+import com.markq.data.remote.AliDohDns
 import com.markq.data.remote.NominatimGeocoder
 import com.markq.data.remote.SyncEngine
 import com.markq.data.remote.WebDavClient
@@ -30,6 +31,7 @@ import okhttp3.OkHttpClient
 
 class AppContainer(app: Application) {
     val http: OkHttpClient = OkHttpClient.Builder()
+        .dns(AliDohDns(app))
         .followRedirects(true)
         .followSslRedirects(true)
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -76,6 +78,7 @@ class MarkQApplication : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         val app = this
         return ImageLoader.Builder(app)
+            .okHttpClient(container.http)
             .memoryCache {
                 MemoryCache.Builder(app)
                     .maxSizeBytes(24 * 1024 * 1024)

@@ -85,6 +85,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 - **本地优先**：创建、修改、完成、删除都先写入本机，再上传。
 - **增量**：打开应用、下拉刷新、顶栏同步，都是先 PROPFIND 条目的 ETag，只有变了或新增的 JSON / 附件才会 GET。不会每次把所有内容重新下完。
+- **DNS**：应用里所有 HTTP（WebDAV、Nominatim、GitHub 更新、Coil）都走阿里 DNS DoH：`h3://223.5.5.5/dns-query`（HTTP/3）。解析不到 HTTP/3 时，仍向该 IP 用 HTTPS/2 做 DoH，不用系统 DNS。结果按 TTL 缓存。
 - **冲突**：正文、时间、附件、颜色、标签、位置按较新的内容时间合并；完成/删除按较新的状态时间合并。
 - 数据在你的 WebDAV 上大致是：
 
@@ -144,5 +145,7 @@ Marks support text, images, files, datetime, location (GPS / last known, default
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow. Card borders follow that mark’s color (muted when completed); uncolored cards keep the green theme border and shadow.
 
 Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download + PackageInstaller, no browser).
+
+HTTP clients resolve DNS via AliDNS DoH over HTTP/3 (`h3://223.5.5.5/dns-query`); if H3 is unavailable they retry DoH over HTTPS/2 to that same IP, never system DNS.
 
 Product/sync/release rules: [`AGENTS.md`](AGENTS.md).

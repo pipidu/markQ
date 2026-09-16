@@ -28,6 +28,7 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - App open uses incremental sync only (never a full content re-download).
 - Local-first: write locally, then sync. Merges must be conflict-safe when two users change the same entry.
 - Auto-update from GitHub Releases (see below).
+- All app HTTP clients (WebDAV, Nominatim, GitHub updates, Coil) resolve DNS through AliDNS DoH over HTTP/3 at `h3://223.5.5.5/dns-query`. System DNS is not used for those lookups. If HTTP/3 is unavailable, DoH retries over HTTPS/2 to the same IP. Answers are cached by TTL.
 
 ## Versioning
 
