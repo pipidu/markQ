@@ -57,6 +57,11 @@
     <string name="locating">正在定位…</string>
     <string name="location_unavailable">未获取到位置，保存时不附带</string>
     <string name="location_open_maps">用地图导航</string>
+    <string name="maps_choose">选择地图</string>
+    <string name="maps_baidu">百度地图</string>
+    <string name="maps_amap">高德地图</string>
+    <string name="maps_not_installed_baidu">未安装百度地图</string>
+    <string name="maps_not_installed_amap">未安装高德地图</string>
     <string name="add_images">添加图片</string>
     <string name="take_photo">拍照</string>
     <string name="add_files">添加文件</string>

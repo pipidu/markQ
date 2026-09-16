@@ -427,18 +427,36 @@ class MarkPlaceTest {
         assertTrue(MarkPlace.hasFix(31.23, 121.47))
         assertFalse(MarkPlace.hasFix(null, 121.47))
         assertEquals(null, MarkPlace.formatOrNull(null, null, "上海"))
+    }
+
+    @Test
+    fun mapUrisUseLatLngNotEncodedAddressQuery() {
+        val amap = MarkPlace.amapRouteUri(31.2304, 121.4737, "上海")
+        assertTrue(amap.startsWith("amapuri://route/plan/"))
+        assertTrue(amap.contains("dlat=31.230400"))
+        assertTrue(amap.contains("dlon=121.473700"))
+        assertTrue(amap.contains("dev=1"))
+        assertFalse(amap.contains("%25"))
+        assertFalse(amap.contains("q="))
+        val encodedOnce = MarkPlace.amapRouteUri(31.2304, 121.4737, "上海")
+        assertTrue(encodedOnce.contains("dname=%E4%B8%8A%E6%B5%B7") || encodedOnce.contains("dname=上海"))
+
+        val navi = MarkPlace.amapNaviUri(31.2304, 121.4737, "上海市黄浦区南京东路")
+        assertTrue(navi.startsWith("androidamap://navi?"))
+        assertTrue(navi.contains("lat=31.230400"))
+        assertTrue(navi.contains("lon=121.473700"))
+
+        val baidu = MarkPlace.baiduNaviUri(31.2304, 121.4737)
         assertEquals(
-            "geo:31.230400,121.473700?q=31.230400,121.473700(%E4%B8%8A%E6%B5%B7)",
-            MarkPlace.geoUri(31.2304, 121.4737, "上海"),
+            "baidumap://map/navi?location=31.230400,121.473700&coord_type=wgs84&src=andr.markq.app",
+            baidu,
         )
-        assertEquals(
-            "geo:31.230000,121.470000?q=31.230000,121.470000",
-            MarkPlace.geoUri(31.23, 121.47, null),
-        )
-        assertEquals(
-            MarkPlace.geoUri(31.23, 121.47, null),
-            MarkPlace.geoUri(31.23, 121.47, "  "),
-        )
+        assertFalse(baidu.contains("query="))
+        assertFalse(baidu.contains("%E4"))
+
+        assertEquals("位置", MarkPlace.shortPoiName(null))
+        assertEquals("位置", MarkPlace.shortPoiName("  "))
+        assertEquals("East Nanjing Road", MarkPlace.shortPoiName("East Nanjing Road, Huangpu, Shanghai"))
     }
 }
 

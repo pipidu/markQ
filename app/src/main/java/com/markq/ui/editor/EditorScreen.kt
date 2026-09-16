@@ -65,7 +65,8 @@ import com.markq.LocaleHelper
 import com.markq.R
 import com.markq.core.MarkPlace
 import com.markq.ui.ImageViewer
-import com.markq.ui.MapsLauncher
+import com.markq.ui.MapsAppChooser
+import com.markq.ui.MapsNavTarget
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
 import java.io.File
@@ -90,6 +91,7 @@ fun EditorScreen(
     var showTime by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<DraftAttachment?>(null) }
     var pendingCapturePath by remember { mutableStateOf<String?>(null) }
+    var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
 
     LaunchedEffect(entryId, templateId) { vm.load(entryId, templateId) }
 
@@ -280,7 +282,11 @@ fun EditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = if (canOpenMaps) {
                         Modifier.clickable {
-                            MapsLauncher.open(context, state.latitude, state.longitude, state.placeName)
+                            val lat = state.latitude
+                            val lng = state.longitude
+                            if (lat != null && lng != null) {
+                                mapsTarget = MapsNavTarget(lat, lng, state.placeName)
+                            }
                         }
                     } else {
                         Modifier
@@ -434,4 +440,9 @@ fun EditorScreen(
             onDismiss = { viewing = null },
         )
     }
+
+    MapsAppChooser(
+        target = mapsTarget,
+        onDismiss = { mapsTarget = null },
+    )
 }

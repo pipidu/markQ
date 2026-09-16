@@ -66,7 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -86,7 +85,8 @@ import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.ImageViewer
-import com.markq.ui.MapsLauncher
+import com.markq.ui.MapsAppChooser
+import com.markq.ui.MapsNavTarget
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.LocalMarkQUiColors
 import com.markq.ui.theme.exclusiveHorizontalScroll
@@ -117,6 +117,7 @@ fun HomeScreen(
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Pair<File, String>?>(null) }
+    var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
 
     LaunchedEffect(sync.error) {
         val err = sync.error
@@ -218,6 +219,9 @@ fun HomeScreen(
                                 onDeleteRequest = { pendingDelete = row.entry.id },
                                 onOpen = { onOpen(row.entry.id) },
                                 onOpenImage = { file, name -> viewing = file to name },
+                                onOpenMaps = { lat, lng, name ->
+                                    mapsTarget = MapsNavTarget(lat, lng, name)
+                                },
                             )
                         }
                     }
@@ -252,6 +256,11 @@ fun HomeScreen(
             onDismiss = { viewing = null },
         )
     }
+
+    MapsAppChooser(
+        target = mapsTarget,
+        onDismiss = { mapsTarget = null },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -262,6 +271,7 @@ private fun SwipeMarkRow(
     onDeleteRequest: () -> Unit,
     onOpen: () -> Unit,
     onOpenImage: (File, String) -> Unit,
+    onOpenMaps: (Double, Double, String?) -> Unit,
 ) {
     val density = LocalDensity.current
     val minDismissPx = with(density) { 160.dp.toPx() }
@@ -347,7 +357,7 @@ private fun SwipeMarkRow(
             }
         },
     ) {
-        MarkCard(row = row, onOpen = onOpen, onOpenImage = onOpenImage)
+        MarkCard(row = row, onOpen = onOpen, onOpenImage = onOpenImage, onOpenMaps = onOpenMaps)
     }
 }
 
@@ -356,6 +366,7 @@ private fun MarkCard(
     row: EntryWithAttachments,
     onOpen: () -> Unit,
     onOpenImage: (File, String) -> Unit,
+    onOpenMaps: (Double, Double, String?) -> Unit,
 ) {
     val completed = row.entry.completed
     val ui = LocalMarkQUiColors.current
@@ -428,17 +439,15 @@ private fun MarkCard(
                     row.entry.placeName,
                 )
                 if (place != null) {
-                    val context = LocalContext.current
                     Spacer(Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable {
-                            MapsLauncher.open(
-                                context,
-                                row.entry.latitude,
-                                row.entry.longitude,
-                                row.entry.placeName,
-                            )
+                            val lat = row.entry.latitude
+                            val lng = row.entry.longitude
+                            if (lat != null && lng != null) {
+                                onOpenMaps(lat, lng, row.entry.placeName)
+                            }
                         },
                     ) {
                         Icon(

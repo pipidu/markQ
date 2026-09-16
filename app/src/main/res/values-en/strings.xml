@@ -57,6 +57,11 @@
     <string name="locating">Finding location…</string>
     <string name="location_unavailable">No location yet; save will omit it</string>
     <string name="location_open_maps">Navigate in maps</string>
+    <string name="maps_choose">Choose map</string>
+    <string name="maps_baidu">Baidu Maps</string>
+    <string name="maps_amap">Amap</string>
+    <string name="maps_not_installed_baidu">Baidu Maps is not installed</string>
+    <string name="maps_not_installed_amap">Amap is not installed</string>
     <string name="add_images">Add images</string>
     <string name="take_photo">Camera</string>
     <string name="add_files">Add files</string>
