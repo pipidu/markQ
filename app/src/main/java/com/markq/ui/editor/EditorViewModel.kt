@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.core.MarkColor
+import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.MarkRepository
 import java.io.File
@@ -34,6 +35,8 @@ data class EditorUiState(
     val date: LocalDate = LocalDate.now(),
     val time: LocalTime = LocalTime.now(),
     val color: String? = null,
+    val tags: List<String> = emptyList(),
+    val tagDraft: String = "",
     val createdBy: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),
     val busy: Boolean = false,
@@ -68,6 +71,7 @@ class EditorViewModel(
                     date = zone.toLocalDate(),
                     time = zone.toLocalTime(),
                     color = row.entry.color,
+                    tags = MarkTags.decode(row.entry.tags),
                     createdBy = row.entry.createdBy,
                     attachments = row.attachments.map { att ->
                         DraftAttachment(
@@ -88,6 +92,19 @@ class EditorViewModel(
     fun setDate(value: LocalDate) = _state.update { it.copy(date = value) }
     fun setTime(value: LocalTime) = _state.update { it.copy(time = value) }
     fun setColor(value: String?) = _state.update { it.copy(color = MarkColor.normalize(value)) }
+    fun setTagDraft(value: String) = _state.update { it.copy(tagDraft = value) }
+
+    fun addTag() {
+        val s = _state.value
+        val next = MarkTags.normalize(s.tags + s.tagDraft)
+        _state.update { it.copy(tags = next, tagDraft = "") }
+    }
+
+    fun removeTag(tag: String) {
+        _state.update { current ->
+            current.copy(tags = current.tags.filterNot { it.equals(tag, ignoreCase = true) })
+        }
+    }
 
     fun addUris(context: Context, uris: List<Uri>) {
         val pending = File(context.cacheDir, "pending").apply { mkdirs() }
@@ -129,6 +146,7 @@ class EditorViewModel(
                         text = s.text.trim(),
                         occurredAt = occurred,
                         color = s.color,
+                        tags = s.tags,
                         attachments = s.attachments.map {
                             MarkRepository.PendingAttachment(it.uri, it.name, it.mime)
                         },
@@ -139,6 +157,7 @@ class EditorViewModel(
                         text = s.text.trim(),
                         occurredAt = occurred,
                         color = s.color,
+                        tags = s.tags,
                         keepAttachmentIds = keep,
                         newAttachments = fresh,
                     )

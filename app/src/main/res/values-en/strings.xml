@@ -26,6 +26,11 @@
     <string name="add_mark">Add mark</string>
     <string name="syncing">Syncing…</string>
     <string name="empty_marks">No marks yet. Tap + to add one.</string>
+    <string name="empty_tag_filter">No marks with this tag.</string>
+    <string name="tags_label">Tags</string>
+    <string name="tags_all">All</string>
+    <string name="tag_add">Add a tag</string>
+    <string name="tag_add_action">Add</string>
     <string name="delete_title">Delete this mark?</string>
     <string name="delete_body">This removes it for everyone on the shared server.</string>
     <string name="delete">Delete</string>

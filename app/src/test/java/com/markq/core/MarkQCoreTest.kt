@@ -111,6 +111,19 @@ class EntryMergeTest {
     }
 
     @Test
+    fun tagsFollowContentTimestamp() {
+        val local = base().copy(
+            tags = listOf("work"),
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T12:00:00Z"),
+        )
+        val remote = base().copy(
+            tags = listOf("home"),
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T11:00:00Z"),
+        )
+        assertEquals(listOf("work"), EntryMerge.merge(local, remote).tags)
+    }
+
+    @Test
     fun newerDeleteWinsStatus() {
         val local = base().copy(
             completed = true,
@@ -306,5 +319,19 @@ class MarkColorTest {
         assertEquals("#FFFFFF", UiThemeDefaults.BACKGROUND)
         assertEquals("#FFFFFF", UiThemeDefaults.FAB)
         assertEquals("#0B6E4F", UiThemeDefaults.CARD_BORDER)
+    }
+}
+
+class MarkTagsTest {
+    @Test
+    fun normalizesAndDedupes() {
+        assertEquals(
+            listOf("Work", "home"),
+            MarkTags.normalize(listOf(" Work ", "work", "home", "", "  ")),
+        )
+        assertEquals("Work\u001Fhome", MarkTags.encode(listOf("Work", "home")))
+        assertEquals(listOf("Work", "home"), MarkTags.decode("Work\u001Fhome"))
+        assertTrue(MarkTags.contains("Work\u001Fhome", "work"))
+        assertFalse(MarkTags.contains("Work\u001Fhome", "other"))
     }
 }

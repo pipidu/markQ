@@ -9,9 +9,13 @@ val MIGRATION_1_2 = Migration(1, 2) { db: SupportSQLiteDatabase ->
     db.execSQL("ALTER TABLE entries ADD COLUMN color TEXT")
 }
 
+val MIGRATION_2_3 = Migration(2, 3) { db: SupportSQLiteDatabase ->
+    db.execSQL("ALTER TABLE entries ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+}
+
 @Database(
     entities = [EntryEntity::class, AttachmentEntity::class, SyncCursorEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class MarkDatabase : RoomDatabase() {

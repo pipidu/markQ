@@ -12,6 +12,7 @@ import com.markq.data.UpdateChecker
 import com.markq.data.UpdateManager
 import com.markq.data.local.AttachmentStore
 import com.markq.data.local.MIGRATION_1_2
+import com.markq.data.local.MIGRATION_2_3
 import com.markq.data.local.MarkDatabase
 import com.markq.data.local.SettingsStore
 import com.markq.data.remote.SyncEngine
@@ -33,7 +34,7 @@ class AppContainer(app: Application) {
         .build()
 
     val db: MarkDatabase = Room.databaseBuilder(app, MarkDatabase::class.java, "markq.db")
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         .fallbackToDestructiveMigration()
         .build()
 

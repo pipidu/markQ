@@ -3,6 +3,7 @@ package com.markq.ui.home
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -30,6 +32,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -43,6 +46,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,11 +74,13 @@ import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
 import com.markq.core.MarkColor
+import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.LocalMarkQUiColors
+import com.markq.ui.theme.exclusiveHorizontalScroll
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -91,6 +97,10 @@ fun HomeScreen(
     vm: HomeViewModel = appViewModel(),
 ) {
     val entries by vm.entries.collectAsStateWithLifecycle()
+    val hasAnyMarks by vm.hasAnyMarks.collectAsStateWithLifecycle()
+    val availableTags by vm.availableTags.collectAsStateWithLifecycle()
+    val tagFilter by vm.tagFilter.collectAsStateWithLifecycle()
+    val pulling by vm.pulling.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
     val ui = LocalMarkQUiColors.current
     val snackbar = remember { SnackbarHostState() }
@@ -131,33 +141,54 @@ fun HomeScreen(
         containerColor = ui.background,
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        if (entries.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    if (sync.running) stringResource(R.string.syncing) else stringResource(R.string.empty_marks),
-                    color = ui.onBackground.copy(alpha = 0.7f),
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            if (availableTags.isNotEmpty()) {
+                TagFilterRow(
+                    tags = availableTags,
+                    selected = tagFilter,
+                    onSelect = vm::setTagFilter,
                 )
             }
-        } else {
-            LazyColumn(
+            PullToRefreshBox(
+                isRefreshing = pulling,
+                onRefresh = { vm.refresh(fromPull = true) },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .weight(1f)
+                    .fillMaxWidth(),
             ) {
-                items(entries, key = { it.entry.id }) { row ->
-                    SwipeMarkRow(
-                        row = row,
-                        onToggleComplete = { vm.complete(row.entry.id) },
-                        onDeleteRequest = { pendingDelete = row.entry.id },
-                        onOpen = { onOpen(row.entry.id) },
-                    )
+                if (entries.isEmpty()) {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            when {
+                                sync.running && !hasAnyMarks -> stringResource(R.string.syncing)
+                                !hasAnyMarks -> stringResource(R.string.empty_marks)
+                                else -> stringResource(R.string.empty_tag_filter)
+                            },
+                            color = ui.onBackground.copy(alpha = 0.7f),
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(entries, key = { it.entry.id }) { row ->
+                            SwipeMarkRow(
+                                row = row,
+                                onToggleComplete = { vm.complete(row.entry.id) },
+                                onDeleteRequest = { pendingDelete = row.entry.id },
+                                onOpen = { onOpen(row.entry.id) },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -345,6 +376,26 @@ private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val tags = remember(row.entry.tags) { MarkTags.decode(row.entry.tags) }
+                if (tags.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    ) {
+                        tags.forEach { tag ->
+                            Text(
+                                tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x140B6E4F))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
                 val images = row.attachments.filter { it.kind == "image" && !it.localPath.isNullOrBlank() }
                 val files = row.attachments.filter { it.kind != "image" }
                 if (images.isNotEmpty()) {
@@ -392,3 +443,33 @@ private val dateFmt: DateTimeFormatter =
         .withZone(ZoneId.systemDefault())
 
 fun formatWhen(epochMs: Long): String = dateFmt.format(Instant.ofEpochMilli(epochMs))
+
+@Composable
+private fun TagFilterRow(
+    tags: List<String>,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+) {
+    val scroll = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .then(Modifier.exclusiveHorizontalScroll(scroll)),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelect(null) },
+            label = { Text(stringResource(R.string.tags_all)) },
+        )
+        tags.forEach { tag ->
+            val active = selected?.equals(tag, ignoreCase = true) == true
+            FilterChip(
+                selected = active,
+                onClick = { onSelect(if (active) null else tag) },
+                label = { Text(tag) },
+            )
+        }
+    }
+}

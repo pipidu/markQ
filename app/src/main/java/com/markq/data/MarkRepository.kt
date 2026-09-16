@@ -80,6 +80,7 @@ class MarkRepository(
         text: String,
         occurredAt: Instant,
         color: String?,
+        tags: List<String> = emptyList(),
         attachments: List<PendingAttachment>,
     ) {
         val cfg = settings.current()
@@ -97,6 +98,7 @@ class MarkRepository(
             createdBy = cfg.nickname,
             updatedBy = cfg.nickname,
             color = com.markq.core.MarkColor.normalize(color),
+            tags = com.markq.core.MarkTags.normalize(tags),
             attachments = stored.map {
                 MarkAttachment(it.id, it.name, it.mime, it.kind, it.size, it.sha256)
             },
@@ -112,6 +114,7 @@ class MarkRepository(
         text: String,
         occurredAt: Instant,
         color: String?,
+        tags: List<String> = emptyList(),
         keepAttachmentIds: List<String>,
         newAttachments: List<PendingAttachment>,
     ) {
@@ -126,6 +129,7 @@ class MarkRepository(
             text = text,
             occurredAt = occurredAt,
             color = com.markq.core.MarkColor.normalize(color),
+            tags = com.markq.core.MarkTags.normalize(tags),
             contentUpdatedAt = now,
             updatedBy = cfg.nickname,
             attachments = all.map {

@@ -3,6 +3,8 @@ package com.markq.ui.theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,11 +27,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.markq.R
 import com.markq.core.MarkColor
 import com.markq.core.UiThemeDefaults
+import kotlin.math.abs
+
+/** Horizontal strip that consumes sideways drags so a parent pager/swipe cannot steal them. */
+fun Modifier.exclusiveHorizontalScroll(
+    state: androidx.compose.foundation.ScrollState,
+): Modifier =
+    this
+        .fillMaxWidth()
+        .pointerInput(state) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull() ?: break
+                    val delta = change.positionChange()
+                    if (abs(delta.x) > abs(delta.y)) {
+                        event.changes.forEach { it.consume() }
+                    }
+                    if (event.changes.none { it.pressed }) break
+                }
+            }
+        }
+        .horizontalScroll(state)
 
 @Composable
 fun ThemeColorPicker(
@@ -39,13 +66,7 @@ fun ThemeColorPicker(
 ) {
     var hexInput by remember(selected) { mutableStateOf(selected) }
     Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        ColorSwatchRow {
             UiThemeDefaults.SWATCHES.forEach { hex ->
                 val argb = MarkColor.parseArgb(hex) ?: return@forEach
                 ColorDot(
@@ -74,10 +95,7 @@ fun EntryColorPicker(
     selected: String?,
     onSelect: (String?) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ColorSwatchRow {
         ColorDot(
             color = Color.White,
             selected = selected.isNullOrBlank(),
@@ -91,6 +109,18 @@ fun EntryColorPicker(
                 onClick = { onSelect(hex) },
             )
         }
+    }
+}
+
+@Composable
+private fun ColorSwatchRow(content: @Composable () -> Unit) {
+    val scroll = rememberScrollState()
+    Row(
+        modifier = Modifier.exclusiveHorizontalScroll(scroll),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        content()
     }
 }
 

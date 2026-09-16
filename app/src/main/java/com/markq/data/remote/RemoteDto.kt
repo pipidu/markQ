@@ -33,6 +33,7 @@ data class RemoteEntry(
     val deletedBy: String? = null,
     val deletedAt: String? = null,
     val color: String? = null,
+    val tags: List<String> = emptyList(),
     val attachments: List<RemoteAttachment> = emptyList(),
 ) {
     fun toModel(): MarkEntry = MarkEntry(
@@ -51,6 +52,7 @@ data class RemoteEntry(
         deletedBy = deletedBy,
         deletedAt = IsoTime.parse(deletedAt),
         color = color,
+        tags = com.markq.core.MarkTags.normalize(tags),
         attachments = attachments.map {
             MarkAttachment(
                 id = it.id,
@@ -80,6 +82,7 @@ data class RemoteEntry(
             deletedBy = entry.deletedBy,
             deletedAt = entry.deletedAt?.let(IsoTime::format),
             color = entry.color,
+            tags = com.markq.core.MarkTags.normalize(entry.tags),
             attachments = entry.attachments.map {
                 RemoteAttachment(
                     id = it.id,
