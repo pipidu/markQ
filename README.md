@@ -60,7 +60,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 | 图片 / 文件 | 编辑页添加或移除。添加图片时默认勾选「压缩图片后上传」：保存前转为 WebP（质量 60%）再写入本地并上传；取消勾选则上传原图。点「拍照」打开相机，拍完写入应用缓存并删掉临时文件，不把原图留在相册；压缩勾选对拍照同样生效。点列表缩略图或编辑页里的图片，可在应用内双指缩放、拖动查看，返回即回到标记。 |
 | 日期和时间 | 默认是当前时间，可改 |
 | 位置 | 新建/编辑默认勾选「附带位置」。有权限时用 GPS 或上次已知位置。地名优先用 Nominatim（OpenStreetMap）反查，失败则用系统 Geocoder，再不行就显示经纬度。拒绝定位权限仍可保存，只是不附带位置。保存不会一直等反查。位置存在条目上并随 WebDAV 同步。卡片和详情都会显示。点位置（地名或经纬度）会在应用内选择百度地图或高德地图，用官方 URI 按经纬度打开标点（百度不进入导航）；未安装则提示「未安装百度地图」或「未安装高德地图」。没有位置则无操作。 |
-| 颜色 | 本条卡片的颜色，存在条目上并随 WebDAV 同步。编辑页颜色条可左右滑动选择 |
+| 颜色 | 本条卡片的颜色，存在条目上并随 WebDAV 同步。列表描边跟这条颜色走（已完成时用同色较淡的描边）。没有颜色时仍用主题绿描边。编辑页颜色条可左右滑动选择 |
 | 标签 | 可加多个。存在条目上并同步 |
 | 作者 | 显示添加者昵称；完成后还会显示是谁完成的 |
 
@@ -109,7 +109,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 | 背景颜色 | 白 `#FFFFFF` |
 | + 按钮颜色 | 白 `#FFFFFF`，带阴影 |
 
-卡片本身是绿描边 + 阴影，和背景分开。每条标记自己的颜色仍然跟条目走，不受这里的主题影响。
+卡片本身带阴影，和背景分开。没有条目颜色时描边是绿的；有颜色时描边跟该条颜色走（已完成时同色变淡）。设置里的主题颜色不改每条标记自己的颜色。
 
 颜色可用色板，也可以填十六进制（如 `#0B6E4F`）。
 
@@ -141,7 +141,7 @@ Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the 
 
 Marks support text, images, files, datetime, location (GPS / last known, default on; address via Nominatim, then Android Geocoder, then coordinates; save still works if permission is denied or geocode times out; tap the address or coords for an in-app 百度/高德 chooser using official lat/lng URIs), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category (chip after the last user tag), not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
 
-Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow; cards have a green border and shadow.
+Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow. Card borders follow that mark’s color (muted when completed); uncolored cards keep the green theme border and shadow.
 
 Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download + PackageInstaller, no browser).
 

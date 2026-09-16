@@ -385,6 +385,11 @@ private fun MarkCard(
     } else {
         MaterialTheme.typography.bodyLarge
     }
+    val borderColor = when {
+        accent == null -> ui.cardBorder
+        completed -> accent.copy(alpha = 0.55f)
+        else -> accent
+    }
     Card(
         onClick = onOpen,
         modifier = Modifier
@@ -392,7 +397,7 @@ private fun MarkCard(
             .alpha(if (completed) 0.72f else 1f),
         colors = CardDefaults.cardColors(containerColor = container),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-        border = BorderStroke(1.5.dp, ui.cardBorder),
+        border = BorderStroke(1.5.dp, borderColor),
         shape = RoundedCornerShape(16.dp),
     ) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
