@@ -6,8 +6,9 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 
 - The user sets a WebDAV server URL and credentials as the sync server. Default is Nutstore (坚果云) at `https://dav.jianguoyun.com/dav/`, plus a save directory (default `MarkQ`).
 - Users add mark entries. Content supports text, images, and files. Each entry has a date/time, defaulting to now.
-- Swipe right marks an item complete. Swipe left deletes. Delete requires a second confirmation.
+- Swipe right marks an item complete. If it is already complete, swipe right uncompletes it. Swipe left deletes. Delete requires a second confirmation. Swipe distance must be high enough that a light flick cannot trigger complete or delete.
 - Completed items show strikethrough and/or a gray filter.
+- The top/app bar stays compact (short height, no extra vertical padding).
 - A user can share the WebDAV address via an app-generated share code so others can mark together.
 - Each user must set a nickname so markers are distinguishable.
 - Every user action must sync to other users: create, complete, delete.
@@ -29,19 +30,18 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - After every change, **commit automatically** (include the version bump).
 - Commit directly to the default branch `main`. No feature branches. No pull requests.
 - “Master” in conversation means this same policy: work on the default branch, not a side branch.
-- **Push only when the user explicitly asks.** Do not push on your own.
+- **Always push to `origin/main` after the commit.** Do not wait for the user to say push.
 - If a PR or side branch already exists from earlier work, close/abandon the PR and put the work on `main`.
 
-## Release (only after a user-requested push)
+## Release (after every push)
 
-After a user-requested push to `main`:
+After every push to `main`:
 
 1. Compile a **release** APK (`:app:assembleRelease`), signed with `app/keystore/markq-release.jks` (passwords in `app/keystore.properties`).
 2. Publish a GitHub Release on `pipidu/markQ` so in-app update can find it:
    - Tag: `v{versionName}` (example: `v1.0.0`)
    - Title: `MarkQ {versionName}`
    - Asset filename: `MarkQ-{versionName}.apk` (must match this pattern)
-3. Do not publish a release unless that push was explicitly requested.
 
 In-app update source: `https://api.github.com/repos/pipidu/markQ/releases/latest`
 
@@ -99,7 +99,7 @@ Deletes are **tombstones** (`deleted: true`) so other clients see the removal. D
 ### Incremental push
 
 - PUT only locally dirty entries/attachments.
-- Use `If-Match` with the last known ETag when present. On 412, GET, merge, retry.
+- Use `If-Match` with the last known ETag when present. On HTTP 412 Precondition Failed: GET/PROPFIND to refresh the ETag, merge, and retry. If If-Match is still stale, PUT without it. Never show “Precondition Failed” (or 412) to the user.
 
 ### Conflict merge
 

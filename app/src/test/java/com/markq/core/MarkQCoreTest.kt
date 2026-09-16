@@ -249,3 +249,13 @@ class ApkFileTest {
         file.delete()
     }
 }
+
+class SyncErrorsTest {
+    @Test
+    fun hidesPreconditionFailed() {
+        assertTrue(SyncErrors.isSilent("Precondition failed"))
+        assertTrue(SyncErrors.isSilent("PUT /dav/MarkQ/entries/a.json failed (412)"))
+        assertFalse(SyncErrors.isSilent("PUT /dav/MarkQ/entries/a.json failed (500)"))
+        assertFalse(SyncErrors.isSilent(null as String?))
+    }
+}

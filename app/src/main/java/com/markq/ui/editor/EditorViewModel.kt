@@ -81,7 +81,12 @@ class EditorViewModel(
             }.onSuccess {
                 _state.update { it.copy(busy = false, saved = true) }
             }.onFailure { err ->
-                _state.update { it.copy(busy = false, error = err.message) }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        error = if (com.markq.core.SyncErrors.isSilent(err)) null else err.message,
+                    )
+                }
             }
         }
     }

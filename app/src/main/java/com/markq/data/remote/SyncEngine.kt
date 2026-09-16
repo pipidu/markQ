@@ -2,6 +2,7 @@ package com.markq.data.remote
 
 import com.markq.core.EntryMerge
 import com.markq.core.MarkEntry
+import com.markq.core.SyncErrors
 import com.markq.data.local.AttachmentDao
 import com.markq.data.local.AttachmentEntity
 import com.markq.data.local.AttachmentStore
@@ -61,8 +62,12 @@ class SyncEngine(
             _state.value = SyncUiState(running = false, error = null, lastSuccessEpochMs = now)
             Result.success(Unit)
         } catch (e: Exception) {
-            _state.value = _state.value.copy(running = false, error = e.message ?: e.javaClass.simpleName)
-            Result.failure(e)
+            val silent = (e is WebDavException && e.code == 412) || SyncErrors.isSilent(e)
+            _state.value = _state.value.copy(
+                running = false,
+                error = if (silent) null else (e.message ?: e.javaClass.simpleName),
+            )
+            if (silent) Result.success(Unit) else Result.failure(e)
         }
     }
 
@@ -153,33 +158,41 @@ class SyncEngine(
 
     private suspend fun push(config: WebDavConfig) {
         for (row in entries.getDirty()) {
-            val model = row.toModel()
-            pushAttachments(config, row)
-            val url = dav.entryUrl(config, model.id)
-            val body = json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(model))
-                .toByteArray(Charsets.UTF_8)
-            val etag = putWithRetry(config, url, body, "application/json; charset=utf-8", row.entry.remoteEtag) {
-                val got = dav.get(config, url)
-                val remote = json.decodeFromString(RemoteEntry.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
-                val merged = EntryMerge.merge(model, remote)
-                entries.upsert(merged.toEntity(dirty = true, remoteEtag = got.etag))
-                json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
+            try {
+                val model = row.toModel()
+                pushAttachments(config, row)
+                val url = dav.entryUrl(config, model.id)
+                val body = json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(model))
+                    .toByteArray(Charsets.UTF_8)
+                val etag = putWithRetry(config, url, body, "application/json; charset=utf-8", row.entry.remoteEtag) {
+                    val got = dav.get(config, url)
+                    val remote = json.decodeFromString(RemoteEntry.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
+                    val merged = EntryMerge.merge(model, remote)
+                    entries.upsert(merged.toEntity(dirty = true, remoteEtag = got.etag))
+                    json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
+                }
+                val path = WebDavClient.cursorKey(url)
+                entries.markPushed(model.id, dirty = false, etag = etag)
+                cursors.upsert(SyncCursorEntity(path, etag, Instant.now().toString()))
+            } catch (e: WebDavException) {
+                if (e.code == 412) continue else throw e
             }
-            val path = WebDavClient.cursorKey(url)
-            entries.markPushed(model.id, dirty = false, etag = etag)
-            cursors.upsert(SyncCursorEntity(path, etag, Instant.now().toString()))
         }
     }
 
     private suspend fun pushAttachments(config: WebDavConfig, row: com.markq.data.local.EntryWithAttachments) {
         dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", row.entry.id))
         for (att in row.attachments.filter { it.dirty }) {
-            val bytes = files.readBytes(row.entry.id, att.id) ?: continue
-            val url = dav.attachmentUrl(config, row.entry.id, att.id)
-            val etag = putWithRetry(config, url, bytes, att.mime.ifBlank { "application/octet-stream" }, att.remoteEtag) {
-                bytes to att.remoteEtag
+            try {
+                val bytes = files.readBytes(row.entry.id, att.id) ?: continue
+                val url = dav.attachmentUrl(config, row.entry.id, att.id)
+                val etag = putWithRetry(config, url, bytes, att.mime.ifBlank { "application/octet-stream" }, att.remoteEtag) {
+                    bytes to null
+                }
+                attachments.markPushed(att.id, etag)
+            } catch (e: WebDavException) {
+                if (e.code == 412) continue else throw e
             }
-            attachments.markPushed(att.id, etag)
         }
     }
 
@@ -191,12 +204,21 @@ class SyncEngine(
         ifMatch: String?,
         onConflict: suspend () -> Pair<ByteArray, String?>,
     ): String? {
-        return try {
-            dav.put(config, url, bytes, contentType, ifMatch)
+        try {
+            return dav.put(config, url, bytes, contentType, ifMatch)
         } catch (e: WebDavException) {
             if (e.code != 412) throw e
-            val (retryBytes, retryMatch) = onConflict()
-            dav.put(config, url, retryBytes, contentType, retryMatch)
         }
+        val (retryBytes, retryMatch) = try {
+            onConflict()
+        } catch (e: WebDavException) {
+            if (e.code == 404) bytes to null else throw e
+        }
+        try {
+            return dav.put(config, url, retryBytes, contentType, retryMatch)
+        } catch (e: WebDavException) {
+            if (e.code != 412) throw e
+        }
+        return dav.put(config, url, retryBytes, contentType, ifMatch = null)
     }
 }

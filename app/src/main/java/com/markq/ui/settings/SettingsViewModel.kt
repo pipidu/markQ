@@ -138,7 +138,16 @@ class SettingsViewModel(
                     )
                 }
             }.onFailure { err ->
-                _form.update { it.copy(busy = false, message = err.message) }
+                _form.update {
+                    it.copy(
+                        busy = false,
+                        message = if (com.markq.core.SyncErrors.isSilent(err)) {
+                            app.getString(R.string.saved)
+                        } else {
+                            err.message
+                        },
+                    )
+                }
             }
         }
     }

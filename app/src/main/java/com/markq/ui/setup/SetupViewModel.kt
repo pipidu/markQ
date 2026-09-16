@@ -118,7 +118,11 @@ class SetupViewModel(
                 _state.update {
                     it.copy(
                         busy = false,
-                        error = err.message ?: app.getString(R.string.error_connect_failed),
+                        error = if (com.markq.core.SyncErrors.isSilent(err)) {
+                            null
+                        } else {
+                            err.message ?: app.getString(R.string.error_connect_failed)
+                        },
                     )
                 }
             }.onSuccess {

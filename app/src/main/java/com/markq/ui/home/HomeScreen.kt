@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
@@ -36,7 +37,6 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -59,13 +60,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
+import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.appViewModel
+import com.markq.ui.CompactTopAppBar
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,13 +85,13 @@ fun HomeScreen(
 
     LaunchedEffect(sync.error) {
         val err = sync.error
-        if (err != null) snackbar.showSnackbar(err)
+        if (err != null && !SyncErrors.isSilent(err)) snackbar.showSnackbar(err)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+            CompactTopAppBar(
+                title = stringResource(R.string.app_name),
                 actions = {
                     IconButton(onClick = vm::refresh, enabled = !sync.running) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.sync))
@@ -128,7 +132,7 @@ fun HomeScreen(
                 items(entries, key = { it.entry.id }) { row ->
                     SwipeMarkRow(
                         row = row,
-                        onComplete = { vm.complete(row.entry.id) },
+                        onToggleComplete = { vm.complete(row.entry.id) },
                         onDeleteRequest = { pendingDelete = row.entry.id },
                     )
                 }
@@ -159,14 +163,24 @@ fun HomeScreen(
 @Composable
 private fun SwipeMarkRow(
     row: EntryWithAttachments,
-    onComplete: () -> Unit,
+    onToggleComplete: () -> Unit,
     onDeleteRequest: () -> Unit,
 ) {
+    val density = LocalDensity.current
+    val minDismissPx = with(density) { 160.dp.toPx() }
+    val stateHolder = remember { arrayOfNulls<androidx.compose.material3.SwipeToDismissBoxState>(1) }
     val state = rememberSwipeToDismissBoxState(
+        positionalThreshold = { distance ->
+            maxOf(distance * 0.55f, minDismissPx).coerceAtMost(distance * 0.8f)
+        },
         confirmValueChange = { value ->
+            val travelled = abs(stateHolder[0]?.requireOffset() ?: 0f)
+            if (value != SwipeToDismissBoxValue.Settled && travelled < minDismissPx) {
+                return@rememberSwipeToDismissBoxState false
+            }
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onComplete()
+                    onToggleComplete()
                     false
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
@@ -177,6 +191,8 @@ private fun SwipeMarkRow(
             }
         },
     )
+    stateHolder[0] = state
+    val completed = row.entry.completed
     SwipeToDismissBox(
         state = state,
         backgroundContent = {
@@ -202,11 +218,19 @@ private fun SwipeMarkRow(
                 contentAlignment = align,
             ) {
                 when (target) {
-                    SwipeToDismissBoxValue.StartToEnd -> Icon(
-                        painterResource(R.drawable.ic_check),
-                        contentDescription = stringResource(R.string.complete),
-                        tint = Color.White,
-                    )
+                    SwipeToDismissBoxValue.StartToEnd -> if (completed) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = stringResource(R.string.uncomplete),
+                            tint = Color.White,
+                        )
+                    } else {
+                        Icon(
+                            painterResource(R.drawable.ic_check),
+                            contentDescription = stringResource(R.string.complete),
+                            tint = Color.White,
+                        )
+                    }
                     SwipeToDismissBoxValue.EndToStart -> Icon(
                         Icons.Default.Delete,
                         contentDescription = stringResource(R.string.delete),

@@ -109,17 +109,26 @@ class MarkRepository(
 
     suspend fun complete(id: String) {
         val row = db.entries().get(id) ?: return
-        if (row.entry.completed) return
         val cfg = settings.current()
         requireNickname(cfg.nickname)
         val now = Instant.now()
-        val model = row.toModel().copy(
-            completed = true,
-            completedBy = cfg.nickname,
-            completedAt = now,
-            statusUpdatedAt = now,
-            updatedBy = cfg.nickname,
-        )
+        val model = if (row.entry.completed) {
+            row.toModel().copy(
+                completed = false,
+                completedBy = null,
+                completedAt = null,
+                statusUpdatedAt = now,
+                updatedBy = cfg.nickname,
+            )
+        } else {
+            row.toModel().copy(
+                completed = true,
+                completedBy = cfg.nickname,
+                completedAt = now,
+                statusUpdatedAt = now,
+                updatedBy = cfg.nickname,
+            )
+        }
         db.entries().upsert(model.toEntity(dirty = true, remoteEtag = row.entry.remoteEtag))
         sync.sync()
     }
