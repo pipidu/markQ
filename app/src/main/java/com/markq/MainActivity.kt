@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,9 +51,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MarkQTheme {
-                val main: MainViewModel = appViewModel()
-                val settings by main.settings.collectAsStateWithLifecycle()
+            val main: MainViewModel = appViewModel()
+            val settings by main.settings.collectAsStateWithLifecycle()
+            MarkQTheme(
+                barHex = settings.barColor,
+                backgroundHex = settings.backgroundColor,
+                fabHex = settings.fabColor,
+            ) {
                 val update by main.update.collectAsStateWithLifecycle()
                 val snackbar = remember { SnackbarHostState() }
                 val nav = rememberNavController()
@@ -77,6 +82,7 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
+                    containerColor = MaterialTheme.colorScheme.background,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     snackbarHost = { SnackbarHost(snackbar) },
                 ) { padding ->

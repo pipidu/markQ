@@ -289,4 +289,22 @@ class MarkColorTest {
         assertEquals("#5B8DEF", MarkColor.normalize("5b8def"))
         assertEquals(null, MarkColor.parseArgb("not-a-color"))
     }
+
+    @Test
+    fun lightVersusDarkInk() {
+        assertTrue(MarkColor.isLight("#FFFFFF"))
+        assertTrue(MarkColor.isLight(UiThemeDefaults.BACKGROUND))
+        assertTrue(MarkColor.isLight("#F6C945"))
+        assertFalse(MarkColor.isLight("#000000"))
+        assertFalse(MarkColor.isLight(UiThemeDefaults.BAR))
+        assertFalse(MarkColor.isLight("#0B6E4F"))
+    }
+
+    @Test
+    fun themeDefaults() {
+        assertEquals("#0B6E4F", UiThemeDefaults.BAR)
+        assertEquals("#FFFFFF", UiThemeDefaults.BACKGROUND)
+        assertEquals("#FFFFFF", UiThemeDefaults.FAB)
+        assertEquals("#0B6E4F", UiThemeDefaults.CARD_BORDER)
+    }
 }

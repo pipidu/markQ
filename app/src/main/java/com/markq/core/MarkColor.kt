@@ -23,6 +23,27 @@ object MarkColor {
         val argb = parseArgb(hex) ?: return null
         return "#%06X".format((argb and 0xFFFFFFL).toInt())
     }
+
+    /** True when the color is light enough that dark ink should sit on it. */
+    fun isLight(hex: String?): Boolean {
+        val argb = parseArgb(hex) ?: return true
+        val r = ((argb shr 16) and 0xFFL) / 255.0
+        val g = ((argb shr 8) and 0xFFL) / 255.0
+        val b = (argb and 0xFFL) / 255.0
+        fun channel(c: Double): Double =
+            if (c <= 0.04045) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+        val luminance = 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+        return luminance > 0.5
+    }
+}
+
+object UiThemeDefaults {
+    const val BAR = "#0B6E4F"
+    const val BACKGROUND = "#FFFFFF"
+    const val FAB = "#FFFFFF"
+    const val CARD_BORDER = "#0B6E4F"
+
+    val SWATCHES: List<String> = listOf(BAR, BACKGROUND, "#14221C") + MarkColor.PRESETS
 }
 
 object ByteFormat {

@@ -1,8 +1,8 @@
 package com.markq.ui.home
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,7 @@ import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.appViewModel
+import com.markq.ui.theme.LocalMarkQUiColors
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -90,6 +92,7 @@ fun HomeScreen(
 ) {
     val entries by vm.entries.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
+    val ui = LocalMarkQUiColors.current
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
 
@@ -113,10 +116,19 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            FloatingActionButton(
+                onClick = onAdd,
+                containerColor = ui.fab,
+                contentColor = ui.onFab,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 8.dp,
+                ),
+            ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_mark))
             }
         },
+        containerColor = ui.background,
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         if (entries.isEmpty()) {
@@ -128,7 +140,7 @@ fun HomeScreen(
             ) {
                 Text(
                     if (sync.running) stringResource(R.string.syncing) else stringResource(R.string.empty_marks),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = ui.onBackground.copy(alpha = 0.7f),
                 )
             }
         } else {
@@ -269,8 +281,9 @@ private fun SwipeMarkRow(
 @Composable
 private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
     val completed = row.entry.completed
+    val ui = LocalMarkQUiColors.current
     val accent = MarkColor.parseArgb(row.entry.color)?.let { Color(it.toInt()) }
-    val surface = MaterialTheme.colorScheme.surface
+    val surface = Color.White
     val container = if (accent != null) {
         accent.copy(alpha = if (completed) 0.12f else 0.22f).compositeOver(surface)
     } else {
@@ -288,10 +301,10 @@ private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
         onClick = onOpen,
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (completed) 0.72f else 1f)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp)),
+            .alpha(if (completed) 0.72f else 1f),
         colors = CardDefaults.cardColors(containerColor = container),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.5.dp, ui.cardBorder),
         shape = RoundedCornerShape(16.dp),
     ) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {

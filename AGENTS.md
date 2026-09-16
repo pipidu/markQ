@@ -11,6 +11,7 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - Each mark has an editable color that is stored on the entry and synced over WebDAV.
 - Completed items show strikethrough and/or a gray filter.
 - The top/app bar stays compact (short height, no extra vertical padding).
+- Background, top/app bar, and + FAB colors are user-adjustable in Settings and stored on the device. Defaults: top bar green (`#0B6E4F`), background white, cards green border with shadow, + button white with shadow. Per-entry card colors stay on the entry and still sync.
 - Cards stay visually distinct from the screen background.
 - A user can share the WebDAV address via an app-generated share code so others can mark together.
 - Each user must set a nickname so markers are distinguishable.

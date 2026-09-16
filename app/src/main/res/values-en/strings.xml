@@ -10,6 +10,11 @@
     <string name="password_optional">Nutstore app password</string>
     <string name="nickname">Nickname</string>
     <string name="nickname_required_hint">Required. Everyone needs a nickname, including the first person who sets up WebDAV, so markers are distinguishable.</string>
+    <string name="theme_section">Appearance</string>
+    <string name="theme_bar_color">Top bar color</string>
+    <string name="theme_background_color">Background color</string>
+    <string name="theme_fab_color">+ button color</string>
+    <string name="theme_hex_hint">Hex color, e.g. #0B6E4F</string>
     <string name="share_code_optional">Share code (optional)</string>
     <string name="share_code_hint">Paste a teammate’s code to fill the server fields. You still need your own nickname.</string>
     <string name="apply_share_code">Apply share code</string>

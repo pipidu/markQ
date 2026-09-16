@@ -112,6 +112,18 @@ class SettingsViewModel(
         it.copy(password = value, shareCode = ShareCode.encode(it.url, it.username, value, it.remoteDir))
     }
 
+    fun setBarColor(hex: String) {
+        viewModelScope.launch { repo.saveTheme(barColor = hex) }
+    }
+
+    fun setBackgroundColor(hex: String) {
+        viewModelScope.launch { repo.saveTheme(backgroundColor = hex) }
+    }
+
+    fun setFabColor(hex: String) {
+        viewModelScope.launch { repo.saveTheme(fabColor = hex) }
+    }
+
     fun save() {
         val f = _form.value
         if (f.nickname.isBlank()) {

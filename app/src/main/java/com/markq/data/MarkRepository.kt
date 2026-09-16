@@ -62,6 +62,18 @@ class MarkRepository(
         settings.saveNickname(nickname)
     }
 
+    suspend fun saveTheme(
+        barColor: String? = null,
+        backgroundColor: String? = null,
+        fabColor: String? = null,
+    ) {
+        settings.saveTheme(
+            barColor = barColor?.let { com.markq.core.MarkColor.normalize(it) },
+            backgroundColor = backgroundColor?.let { com.markq.core.MarkColor.normalize(it) },
+            fabColor = fabColor?.let { com.markq.core.MarkColor.normalize(it) },
+        )
+    }
+
     suspend fun sync() = sync.sync()
 
     suspend fun create(

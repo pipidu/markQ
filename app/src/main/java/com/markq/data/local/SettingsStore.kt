@@ -18,6 +18,9 @@ data class AppSettings(
     val username: String = "",
     val password: String = "",
     val lastSyncEpochMs: Long = 0L,
+    val barColor: String = com.markq.core.UiThemeDefaults.BAR,
+    val backgroundColor: String = com.markq.core.UiThemeDefaults.BACKGROUND,
+    val fabColor: String = com.markq.core.UiThemeDefaults.FAB,
 ) {
     val hasNickname: Boolean get() = nickname.isNotBlank()
     val hasServer: Boolean get() = webdavUrl.isNotBlank()
@@ -43,6 +46,9 @@ class SettingsStore(context: Context) {
             username = prefs[USERNAME].orEmpty(),
             password = prefs[PASSWORD].orEmpty(),
             lastSyncEpochMs = prefs[LAST_SYNC] ?: 0L,
+            barColor = prefs[BAR_COLOR] ?: com.markq.core.UiThemeDefaults.BAR,
+            backgroundColor = prefs[BG_COLOR] ?: com.markq.core.UiThemeDefaults.BACKGROUND,
+            fabColor = prefs[FAB_COLOR] ?: com.markq.core.UiThemeDefaults.FAB,
         )
     }
 
@@ -72,6 +78,18 @@ class SettingsStore(context: Context) {
         dataStore.edit { it[NICKNAME] = nick }
     }
 
+    suspend fun saveTheme(
+        barColor: String? = null,
+        backgroundColor: String? = null,
+        fabColor: String? = null,
+    ) {
+        dataStore.edit { prefs ->
+            barColor?.let { prefs[BAR_COLOR] = it }
+            backgroundColor?.let { prefs[BG_COLOR] = it }
+            fabColor?.let { prefs[FAB_COLOR] = it }
+        }
+    }
+
     suspend fun setLastSync(epochMs: Long) {
         dataStore.edit { it[LAST_SYNC] = epochMs }
     }
@@ -83,5 +101,8 @@ class SettingsStore(context: Context) {
         val USERNAME = stringPreferencesKey("webdav_username")
         val PASSWORD = stringPreferencesKey("webdav_password")
         val LAST_SYNC = longPreferencesKey("last_sync")
+        val BAR_COLOR = stringPreferencesKey("theme_bar_color")
+        val BG_COLOR = stringPreferencesKey("theme_background_color")
+        val FAB_COLOR = stringPreferencesKey("theme_fab_color")
     }
 }

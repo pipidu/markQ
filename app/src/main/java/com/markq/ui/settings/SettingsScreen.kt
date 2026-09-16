@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markq.BuildConfig
 import com.markq.R
 import com.markq.ui.appViewModel
+import com.markq.ui.theme.ThemeColorPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,9 +43,11 @@ fun SettingsScreen(
     vm: SettingsViewModel = appViewModel(),
 ) {
     val form by vm.form.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CompactTopAppBar(
                 title = stringResource(R.string.settings),
@@ -72,6 +75,20 @@ fun SettingsScreen(
                 isError = form.nicknameError,
                 singleLine = true,
             )
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.theme_section), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.theme_bar_color), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
+            ThemeColorPicker(selected = settings.barColor, onSelect = vm::setBarColor)
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.theme_background_color), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
+            ThemeColorPicker(selected = settings.backgroundColor, onSelect = vm::setBackgroundColor)
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.theme_fab_color), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(8.dp))
+            ThemeColorPicker(selected = settings.fabColor, onSelect = vm::setFabColor)
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.nutstore_label), style = MaterialTheme.typography.titleMedium)
             Text(

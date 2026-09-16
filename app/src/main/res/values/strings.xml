@@ -10,6 +10,11 @@
     <string name="password_optional">坚果云应用密码</string>
     <string name="nickname">昵称</string>
     <string name="nickname_required_hint">必填。每个人都要设置昵称，包括第一个配置 WebDAV 的人，方便区分是谁在标记。</string>
+    <string name="theme_section">外观</string>
+    <string name="theme_bar_color">顶栏颜色</string>
+    <string name="theme_background_color">背景颜色</string>
+    <string name="theme_fab_color">+ 按钮颜色</string>
+    <string name="theme_hex_hint">十六进制颜色，例如 #0B6E4F</string>
     <string name="share_code_optional">分享码（选填）</string>
     <string name="share_code_hint">粘贴队友的分享码可自动填入服务器信息。昵称仍需自己填写。</string>
     <string name="apply_share_code">应用分享码</string>
