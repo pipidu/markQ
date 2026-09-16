@@ -18,7 +18,7 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - Each mark has an editable color that is stored on the entry and synced over WebDAV.
 - Marks can have tags. Tags are stored on the entry and synced over WebDAV. The list can be filtered by tag locally (on already-synced entries).
 - Completed marks appear only in the 「已完成」 category (strikethrough and/or a gray filter). They must not appear in 「全部」 or in any tag filter. Completing a mark moves it there; uncompleting returns it to the normal list and tags.
-- Each mark can attach a location (lat/lng, and a readable place name when cheap). Default on when creating or editing. Use GPS or last-known location. Request runtime location permission; if denied, still allow saving without location. Location syncs with the entry over WebDAV.
+- Each mark can attach a location (lat/lng, and a readable place name). Default on when creating or editing. Use GPS or last-known location. Reverse-geocode with Nominatim (OpenStreetMap) using a MarkQ User-Agent, cached and rate-limited; if that fails, Android Geocoder, then raw coordinates. Request runtime location permission; if denied, still allow saving without location. Do not block save waiting for geocode. Location syncs with the entry over WebDAV.
 - The top/app bar stays compact (short height, no extra vertical padding).
 - Background, top/app bar, and + FAB colors are user-adjustable in Settings and stored on the device. Defaults: top bar green (`#0B6E4F`), background white, cards green border with shadow, + button white with shadow. Per-entry card colors stay on the entry and still sync.
 - Cards stay visually distinct from the screen background.

@@ -21,7 +21,8 @@ inline fun <reified VM : ViewModel> appViewModel(): VM {
                     com.markq.ui.setup.SetupViewModel::class.java -> com.markq.ui.setup.SetupViewModel(repo, app)
                     com.markq.ui.settings.SettingsViewModel::class.java ->
                         com.markq.ui.settings.SettingsViewModel(repo, updates, app)
-                    com.markq.ui.editor.EditorViewModel::class.java -> com.markq.ui.editor.EditorViewModel(repo)
+                    com.markq.ui.editor.EditorViewModel::class.java ->
+                        com.markq.ui.editor.EditorViewModel(repo, app.container.places)
                     com.markq.ui.templates.TemplateListViewModel::class.java ->
                         com.markq.ui.templates.TemplateListViewModel(repo)
                     com.markq.ui.templates.TemplateEditorViewModel::class.java ->

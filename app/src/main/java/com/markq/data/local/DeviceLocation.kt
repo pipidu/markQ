@@ -3,8 +3,6 @@ package com.markq.data.local
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -12,7 +10,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import androidx.core.content.ContextCompat
-import com.markq.LocaleHelper
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -23,7 +20,7 @@ import kotlin.coroutines.resume
 data class LocationFix(
     val latitude: Double,
     val longitude: Double,
-    val placeName: String?,
+    val placeName: String? = null,
 )
 
 object DeviceLocation {
@@ -43,7 +40,7 @@ object DeviceLocation {
         if (!hasPermission(context)) return null
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
         val loc = lastKnown(lm) ?: return null
-        return LocationFix(loc.latitude, loc.longitude, placeName = null)
+        return LocationFix(loc.latitude, loc.longitude)
     }
 
     suspend fun current(context: Context): LocationFix? = withContext(Dispatchers.IO) {
@@ -53,8 +50,7 @@ object DeviceLocation {
         val last = lastKnown(lm)
         val fresh = withTimeoutOrNull(6_000) { awaitFresh(context, lm) }
         val loc = choose(fresh, last) ?: return@withContext null
-        val name = withTimeoutOrNull(2_500) { placeName(context, loc.latitude, loc.longitude) }
-        LocationFix(loc.latitude, loc.longitude, name)
+        LocationFix(loc.latitude, loc.longitude)
     }
 
     @SuppressLint("MissingPermission")
@@ -118,33 +114,5 @@ object DeviceLocation {
         if (fresh == null) return last
         if (last == null) return fresh
         return if (fresh.time >= last.time) fresh else last
-    }
-
-    @Suppress("DEPRECATION")
-    private suspend fun placeName(context: Context, latitude: Double, longitude: Double): String? {
-        if (!Geocoder.isPresent()) return null
-        val geocoder = Geocoder(context, LocaleHelper.appLocale)
-        val address = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            suspendCancellableCoroutine { cont ->
-                geocoder.getFromLocation(latitude, longitude, 1) { list ->
-                    if (cont.isActive) cont.resume(list.firstOrNull())
-                }
-            }
-        } else {
-            runCatching { geocoder.getFromLocation(latitude, longitude, 1)?.firstOrNull() }.getOrNull()
-        }
-        return formatAddress(address)
-    }
-
-    internal fun formatAddress(address: Address?): String? {
-        if (address == null) return null
-        val parts = listOfNotNull(
-            address.subLocality,
-            address.thoroughfare,
-            address.featureName,
-            address.locality,
-            address.adminArea,
-        ).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        return parts.take(3).joinToString(" ").ifBlank { null }
     }
 }

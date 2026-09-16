@@ -11,6 +11,7 @@ import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.MarkRepository
 import com.markq.data.local.DeviceLocation
+import com.markq.data.local.PlaceNameResolver
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class DraftAttachment(
     val key: String,
@@ -57,6 +59,7 @@ data class EditorUiState(
 
 class EditorViewModel(
     private val repo: MarkRepository,
+    private val places: PlaceNameResolver,
 ) : ViewModel() {
     private val _state = MutableStateFlow(EditorUiState())
     val state: StateFlow<EditorUiState> = _state.asStateFlow()
@@ -153,7 +156,10 @@ class EditorViewModel(
     fun prepareLocation(context: Context) {
         val s = _state.value
         if (!s.includeLocation) return
-        if (MarkPlace.hasFix(s.latitude, s.longitude)) return
+        if (MarkPlace.hasFix(s.latitude, s.longitude)) {
+            if (s.placeName.isNullOrBlank()) resolvePlaceName(s.latitude!!, s.longitude!!)
+            return
+        }
         if (!DeviceLocation.hasPermission(context)) {
             _state.update { it.copy(needLocationPermission = true, locating = false) }
             return
@@ -181,6 +187,10 @@ class EditorViewModel(
                 )
             }
         }
+        val peeked = _state.value
+        if (MarkPlace.hasFix(peeked.latitude, peeked.longitude) && peeked.placeName.isNullOrBlank()) {
+            resolvePlaceName(peeked.latitude!!, peeked.longitude!!)
+        }
         viewModelScope.launch {
             val fix = runCatching { DeviceLocation.current(context) }.getOrNull()
             _state.update { current ->
@@ -191,9 +201,24 @@ class EditorViewModel(
                         locating = false,
                         latitude = fix?.latitude ?: current.latitude,
                         longitude = fix?.longitude ?: current.longitude,
-                        placeName = fix?.placeName ?: current.placeName,
                     )
                 }
+            }
+            val lat = _state.value.latitude
+            val lng = _state.value.longitude
+            if (_state.value.includeLocation && MarkPlace.hasFix(lat, lng) && _state.value.placeName.isNullOrBlank()) {
+                resolvePlaceName(lat!!, lng!!)
+            }
+        }
+    }
+
+    private fun resolvePlaceName(latitude: Double, longitude: Double) {
+        viewModelScope.launch {
+            val name = runCatching { places.resolve(latitude, longitude) }.getOrNull()?.ifBlank { null }
+            if (name == null) return@launch
+            _state.update { current ->
+                if (!current.includeLocation || current.placeName?.isNotBlank() == true) current
+                else current.copy(placeName = name)
             }
         }
     }
@@ -272,7 +297,14 @@ class EditorViewModel(
                 val id = s.entryId
                 val lat = if (s.includeLocation) s.latitude else null
                 val lng = if (s.includeLocation) s.longitude else null
-                val place = if (s.includeLocation) s.placeName else null
+                var place = if (s.includeLocation) {
+                    _state.value.placeName?.trim()?.ifBlank { null } ?: s.placeName?.trim()?.ifBlank { null }
+                } else {
+                    null
+                }
+                if (s.includeLocation && MarkPlace.hasFix(lat, lng) && place.isNullOrBlank()) {
+                    place = withTimeoutOrNull(5_000) { places.resolve(lat!!, lng!!) }?.trim()?.ifBlank { null }
+                }
                 if (id.isNullOrBlank()) {
                     repo.create(
                         text = s.text.trim(),

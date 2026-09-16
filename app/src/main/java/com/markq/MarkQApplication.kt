@@ -16,7 +16,9 @@ import com.markq.data.local.MIGRATION_2_3
 import com.markq.data.local.MIGRATION_3_4
 import com.markq.data.local.MIGRATION_4_5
 import com.markq.data.local.MarkDatabase
+import com.markq.data.local.PlaceNameResolver
 import com.markq.data.local.SettingsStore
+import com.markq.data.remote.NominatimGeocoder
 import com.markq.data.remote.SyncEngine
 import com.markq.data.remote.WebDavClient
 import java.util.concurrent.TimeUnit
@@ -43,6 +45,8 @@ class AppContainer(app: Application) {
     val settings = SettingsStore(app)
     val files = AttachmentStore(app)
     val dav = WebDavClient(http)
+    val nominatim = NominatimGeocoder(http, app.cacheDir.resolve("nominatim-cache.json"))
+    val places = PlaceNameResolver(app, nominatim)
     val sync = SyncEngine(dav, db.entries(), db.attachments(), db.templates(), db.cursors(), files, settings)
     val repository = MarkRepository(db, settings, files, sync, app)
     val updateChecker = UpdateChecker(http, app)

@@ -430,6 +430,43 @@ class MarkPlaceTest {
     }
 }
 
+class NominatimPlaceTest {
+    @Test
+    fun cacheKeyRoundsToFourDecimals() {
+        assertEquals("31.2304,121.4737", NominatimPlace.cacheKey(31.23041, 121.47370))
+        assertEquals(
+            NominatimPlace.cacheKey(31.23040, 121.47371),
+            NominatimPlace.cacheKey(31.23044, 121.47370),
+        )
+    }
+
+    @Test
+    fun prefersChineseComposedAddress() {
+        val parts = NominatimAddressParts(
+            road = "南京东路",
+            suburb = "黄浦区",
+            city = "上海市",
+            state = "上海市",
+        )
+        assertEquals(
+            "上海市黄浦区南京东路",
+            NominatimPlace.format("East Nanjing Road, Huangpu, Shanghai, China", parts),
+        )
+    }
+
+    @Test
+    fun fallsBackToDisplayName() {
+        assertEquals(
+            " Trafalgar Square, London, UK ".trim(),
+            NominatimPlace.format(" Trafalgar Square, London, UK ", NominatimAddressParts()),
+        )
+        assertEquals(
+            "London",
+            NominatimPlace.format(null, NominatimAddressParts(city = "London")),
+        )
+    }
+}
+
 class MarkListVisibilityTest {
     @Test
     fun completedOnlyInCompletedCategory() {
