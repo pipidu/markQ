@@ -27,6 +27,9 @@ data class EntryEntity(
     val deletedAt: Long?,
     val color: String?,
     val tags: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val placeName: String? = null,
     val dirty: Boolean,
     val remoteEtag: String?,
 )
@@ -77,6 +80,9 @@ data class EntryWithAttachments(
         deletedAt = entry.deletedAt?.let(Instant::ofEpochMilli),
         color = entry.color,
         tags = com.markq.core.MarkTags.decode(entry.tags),
+        latitude = entry.latitude,
+        longitude = entry.longitude,
+        placeName = entry.placeName,
         attachments = attachments.map {
             MarkAttachment(
                 id = it.id,
@@ -160,6 +166,9 @@ fun MarkEntry.toEntity(dirty: Boolean, remoteEtag: String?): EntryEntity = Entry
     deletedAt = deletedAt?.toEpochMilli(),
     color = color,
     tags = com.markq.core.MarkTags.encode(tags),
+    latitude = latitude,
+    longitude = longitude,
+    placeName = placeName,
     dirty = dirty,
     remoteEtag = remoteEtag,
 )

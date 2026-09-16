@@ -37,9 +37,15 @@ val MIGRATION_3_4 = Migration(3, 4) { db: SupportSQLiteDatabase ->
     )
 }
 
+val MIGRATION_4_5 = Migration(4, 5) { db: SupportSQLiteDatabase ->
+    db.execSQL("ALTER TABLE entries ADD COLUMN latitude REAL")
+    db.execSQL("ALTER TABLE entries ADD COLUMN longitude REAL")
+    db.execSQL("ALTER TABLE entries ADD COLUMN placeName TEXT")
+}
+
 @Database(
     entities = [EntryEntity::class, AttachmentEntity::class, SyncCursorEntity::class, TemplateEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class MarkDatabase : RoomDatabase() {

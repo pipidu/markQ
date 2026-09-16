@@ -6,9 +6,11 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.core.MarkColor
+import com.markq.core.MarkPlace
 import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.MarkRepository
+import com.markq.data.local.DeviceLocation
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -41,6 +43,12 @@ data class EditorUiState(
     val createdBy: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),
     val compressImages: Boolean = true,
+    val includeLocation: Boolean = true,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val placeName: String? = null,
+    val locating: Boolean = false,
+    val needLocationPermission: Boolean = false,
     val busy: Boolean = false,
     val error: String? = null,
     val saved: Boolean = false,
@@ -91,6 +99,10 @@ class EditorViewModel(
                             existingId = att.id,
                         )
                     },
+                    includeLocation = true,
+                    latitude = row.entry.latitude,
+                    longitude = row.entry.longitude,
+                    placeName = row.entry.placeName,
                     loaded = true,
                 )
             }
@@ -132,6 +144,59 @@ class EditorViewModel(
     }
 
     fun setCompressImages(value: Boolean) = _state.update { it.copy(compressImages = value) }
+
+    fun setIncludeLocation(context: Context, value: Boolean) {
+        _state.update { it.copy(includeLocation = value, needLocationPermission = false) }
+        if (value) prepareLocation(context)
+    }
+
+    fun prepareLocation(context: Context) {
+        val s = _state.value
+        if (!s.includeLocation) return
+        if (MarkPlace.hasFix(s.latitude, s.longitude)) return
+        if (!DeviceLocation.hasPermission(context)) {
+            _state.update { it.copy(needLocationPermission = true, locating = false) }
+            return
+        }
+        captureLocation(context)
+    }
+
+    fun onLocationPermission(context: Context, granted: Boolean) {
+        _state.update { it.copy(needLocationPermission = false) }
+        if (granted && _state.value.includeLocation) {
+            captureLocation(context)
+        }
+    }
+
+    fun captureLocation(context: Context) {
+        val s = _state.value
+        if (!s.includeLocation || s.locating) return
+        if (MarkPlace.hasFix(s.latitude, s.longitude)) return
+        _state.update { it.copy(locating = true) }
+        DeviceLocation.peek(context)?.let { peek ->
+            _state.update { current ->
+                if (!current.includeLocation) current else current.copy(
+                    latitude = current.latitude ?: peek.latitude,
+                    longitude = current.longitude ?: peek.longitude,
+                )
+            }
+        }
+        viewModelScope.launch {
+            val fix = runCatching { DeviceLocation.current(context) }.getOrNull()
+            _state.update { current ->
+                if (!current.includeLocation) {
+                    current.copy(locating = false)
+                } else {
+                    current.copy(
+                        locating = false,
+                        latitude = fix?.latitude ?: current.latitude,
+                        longitude = fix?.longitude ?: current.longitude,
+                        placeName = fix?.placeName ?: current.placeName,
+                    )
+                }
+            }
+        }
+    }
 
     fun showError(message: String) = _state.update { it.copy(error = message) }
 
@@ -205,6 +270,9 @@ class EditorViewModel(
                 val keep = s.attachments.mapNotNull { it.existingId }
                 val fresh = s.attachments.filter { it.existingId == null }.map(::pending)
                 val id = s.entryId
+                val lat = if (s.includeLocation) s.latitude else null
+                val lng = if (s.includeLocation) s.longitude else null
+                val place = if (s.includeLocation) s.placeName else null
                 if (id.isNullOrBlank()) {
                     repo.create(
                         text = s.text.trim(),
@@ -212,6 +280,9 @@ class EditorViewModel(
                         color = s.color,
                         tags = s.tags,
                         attachments = s.attachments.map(::pending),
+                        latitude = lat,
+                        longitude = lng,
+                        placeName = place,
                     )
                 } else {
                     repo.update(
@@ -222,6 +293,9 @@ class EditorViewModel(
                         tags = s.tags,
                         keepAttachmentIds = keep,
                         newAttachments = fresh,
+                        latitude = lat,
+                        longitude = lng,
+                        placeName = place,
                     )
                 }
             }.onSuccess {

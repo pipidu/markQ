@@ -141,6 +141,26 @@ class EntryMergeTest {
         assertEquals("cam", merged.deletedBy)
         assertFalse(merged.completed)
     }
+
+    @Test
+    fun locationFollowsContentTimestamp() {
+        val local = base().copy(
+            latitude = 31.23,
+            longitude = 121.47,
+            placeName = "上海",
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T12:00:00Z"),
+        )
+        val remote = base().copy(
+            latitude = 39.90,
+            longitude = 116.40,
+            placeName = "北京",
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T11:00:00Z"),
+        )
+        val merged = EntryMerge.merge(local, remote)
+        assertEquals(31.23, merged.latitude)
+        assertEquals(121.47, merged.longitude)
+        assertEquals("上海", merged.placeName)
+    }
 }
 
 class SemVerTest {
@@ -396,5 +416,29 @@ class TemplateMergeTest {
         assertTrue(merged.deleted)
         assertEquals("bob", merged.deletedBy)
         assertEquals("keep", merged.text)
+    }
+}
+
+class MarkPlaceTest {
+    @Test
+    fun prefersReadableName() {
+        assertEquals("上海", MarkPlace.format(31.2304, 121.4737, "上海"))
+        assertEquals("31.23040, 121.47370", MarkPlace.format(31.2304, 121.4737, "  "))
+        assertTrue(MarkPlace.hasFix(31.23, 121.47))
+        assertFalse(MarkPlace.hasFix(null, 121.47))
+        assertEquals(null, MarkPlace.formatOrNull(null, null, "上海"))
+    }
+}
+
+class MarkListVisibilityTest {
+    @Test
+    fun completedOnlyInCompletedCategory() {
+        assertFalse(MarkListVisibility.include(true, listOf("work"), MarkListFilter.All))
+        assertTrue(MarkListVisibility.include(true, listOf("work"), MarkListFilter.Completed))
+        assertFalse(MarkListVisibility.include(true, listOf("work"), MarkListFilter.Tag("work")))
+        assertTrue(MarkListVisibility.include(false, listOf("work"), MarkListFilter.All))
+        assertFalse(MarkListVisibility.include(false, listOf("work"), MarkListFilter.Completed))
+        assertTrue(MarkListVisibility.include(false, listOf("work"), MarkListFilter.Tag("work")))
+        assertFalse(MarkListVisibility.include(false, listOf("home"), MarkListFilter.Tag("work")))
     }
 }

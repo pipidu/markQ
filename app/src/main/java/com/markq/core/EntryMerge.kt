@@ -28,6 +28,9 @@ data class MarkEntry(
     val deletedAt: Instant? = null,
     val color: String? = null,
     val tags: List<String> = emptyList(),
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val placeName: String? = null,
     val attachments: List<MarkAttachment> = emptyList(),
 ) {
     fun tieBreakKey(): String =
@@ -37,6 +40,9 @@ data class MarkEntry(
             occurredAt.toString(),
             color.orEmpty(),
             MarkTags.encode(tags),
+            latitude?.toString().orEmpty(),
+            longitude?.toString().orEmpty(),
+            placeName.orEmpty(),
             completed.toString(),
             deleted.toString(),
             completedBy.orEmpty(),
@@ -67,6 +73,9 @@ object EntryMerge {
             deletedAt = status.deletedAt,
             color = content.color,
             tags = content.tags,
+            latitude = content.latitude,
+            longitude = content.longitude,
+            placeName = content.placeName,
             attachments = content.attachments,
         )
     }

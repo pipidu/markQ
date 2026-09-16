@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NoteAlt
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -77,6 +78,8 @@ import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
 import com.markq.core.MarkColor
+import com.markq.core.MarkListFilter
+import com.markq.core.MarkPlace
 import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
@@ -103,8 +106,9 @@ fun HomeScreen(
 ) {
     val entries by vm.entries.collectAsStateWithLifecycle()
     val hasAnyMarks by vm.hasAnyMarks.collectAsStateWithLifecycle()
+    val hasCompleted by vm.hasCompleted.collectAsStateWithLifecycle()
     val availableTags by vm.availableTags.collectAsStateWithLifecycle()
-    val tagFilter by vm.tagFilter.collectAsStateWithLifecycle()
+    val listFilter by vm.listFilter.collectAsStateWithLifecycle()
     val pulling by vm.pulling.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
     val ui = LocalMarkQUiColors.current
@@ -171,13 +175,11 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (availableTags.isNotEmpty()) {
-                TagFilterRow(
-                    tags = availableTags,
-                    selected = tagFilter,
-                    onSelect = vm::setTagFilter,
-                )
-            }
+            TagFilterRow(
+                tags = availableTags,
+                selected = listFilter,
+                onSelect = vm::setListFilter,
+            )
             PullToRefreshBox(
                 isRefreshing = pulling,
                 onRefresh = { vm.refresh(fromPull = true) },
@@ -193,8 +195,10 @@ fun HomeScreen(
                         Text(
                             when {
                                 sync.running && !hasAnyMarks -> stringResource(R.string.syncing)
-                                !hasAnyMarks -> stringResource(R.string.empty_marks)
-                                else -> stringResource(R.string.empty_tag_filter)
+                                listFilter is MarkListFilter.Completed -> stringResource(R.string.empty_completed)
+                                listFilter is MarkListFilter.Tag -> stringResource(R.string.empty_tag_filter)
+                                hasCompleted -> stringResource(R.string.empty_active_marks)
+                                else -> stringResource(R.string.empty_marks)
                             },
                             color = ui.onBackground.copy(alpha = 0.7f),
                         )
@@ -416,6 +420,30 @@ private fun MarkCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val place = MarkPlace.formatOrNull(
+                    row.entry.latitude,
+                    row.entry.longitude,
+                    row.entry.placeName,
+                )
+                if (place != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            place,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
+                }
                 val tags = remember(row.entry.tags) { MarkTags.decode(row.entry.tags) }
                 if (tags.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -489,8 +517,8 @@ fun formatWhen(epochMs: Long): String = dateFmt.format(Instant.ofEpochMilli(epoc
 @Composable
 private fun TagFilterRow(
     tags: List<String>,
-    selected: String?,
-    onSelect: (String?) -> Unit,
+    selected: MarkListFilter,
+    onSelect: (MarkListFilter) -> Unit,
 ) {
     val scroll = rememberScrollState()
     Row(
@@ -501,15 +529,21 @@ private fun TagFilterRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FilterChip(
-            selected = selected == null,
-            onClick = { onSelect(null) },
+            selected = selected is MarkListFilter.All,
+            onClick = { onSelect(MarkListFilter.All) },
             label = { Text(stringResource(R.string.tags_all)) },
         )
+        FilterChip(
+            selected = selected is MarkListFilter.Completed,
+            onClick = { onSelect(MarkListFilter.Completed) },
+            label = { Text(stringResource(R.string.filter_completed)) },
+        )
         tags.forEach { tag ->
-            val active = selected?.equals(tag, ignoreCase = true) == true
+            val active = selected is MarkListFilter.Tag &&
+                selected.name.equals(tag, ignoreCase = true)
             FilterChip(
                 selected = active,
-                onClick = { onSelect(if (active) null else tag) },
+                onClick = { onSelect(if (active) MarkListFilter.All else MarkListFilter.Tag(tag)) },
                 label = { Text(tag) },
             )
         }

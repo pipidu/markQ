@@ -2,6 +2,8 @@ package com.markq.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.markq.core.MarkListFilter
+import com.markq.core.MarkListVisibility
 import com.markq.core.MarkTags
 import com.markq.data.MarkRepository
 import com.markq.data.local.EntryWithAttachments
@@ -23,23 +25,32 @@ class HomeViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
-    private val _tagFilter = MutableStateFlow<String?>(null)
-    val tagFilter: StateFlow<String?> = _tagFilter.asStateFlow()
+    private val _listFilter = MutableStateFlow<MarkListFilter>(MarkListFilter.All)
+    val listFilter: StateFlow<MarkListFilter> = _listFilter.asStateFlow()
     private val _pulling = MutableStateFlow(false)
     val pulling: StateFlow<Boolean> = _pulling.asStateFlow()
 
     val availableTags: StateFlow<List<String>> = allEntries.map { rows ->
-        rows.flatMap { MarkTags.decode(it.entry.tags) }
+        rows.filter { !it.entry.completed }
+            .flatMap { MarkTags.decode(it.entry.tags) }
             .distinctBy { it.lowercase() }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val entries: StateFlow<List<EntryWithAttachments>> = combine(allEntries, _tagFilter) { rows, tag ->
-        if (tag.isNullOrBlank()) rows
-        else rows.filter { MarkTags.contains(it.entry.tags, tag) }
+    val entries: StateFlow<List<EntryWithAttachments>> = combine(allEntries, _listFilter) { rows, filter ->
+        rows.filter { row ->
+            MarkListVisibility.include(
+                completed = row.entry.completed,
+                tags = MarkTags.decode(row.entry.tags),
+                filter = filter,
+            )
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val hasAnyMarks: StateFlow<Boolean> = allEntries.map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val hasCompleted: StateFlow<Boolean> = allEntries.map { rows -> rows.any { it.entry.completed } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val syncState: StateFlow<SyncUiState> = repo.syncState
@@ -47,17 +58,19 @@ class HomeViewModel(
     init {
         viewModelScope.launch { repo.sync() }
         viewModelScope.launch {
-            combine(availableTags, _tagFilter) { tags, selected -> selected to tags }
+            combine(availableTags, _listFilter) { tags, selected -> selected to tags }
                 .collect { (selected, tags) ->
-                    if (selected != null && tags.none { it.equals(selected, ignoreCase = true) }) {
-                        _tagFilter.value = null
+                    if (selected is MarkListFilter.Tag &&
+                        tags.none { it.equals(selected.name, ignoreCase = true) }
+                    ) {
+                        _listFilter.value = MarkListFilter.All
                     }
                 }
         }
     }
 
-    fun setTagFilter(tag: String?) {
-        _tagFilter.value = tag
+    fun setListFilter(filter: MarkListFilter) {
+        _listFilter.value = filter
     }
 
     fun refresh(fromPull: Boolean = false) {

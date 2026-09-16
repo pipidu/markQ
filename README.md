@@ -59,11 +59,12 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 | 文字 | 可空，列表会显示「（无文字）」 |
 | 图片 / 文件 | 编辑页添加或移除。添加图片时默认勾选「压缩图片后上传」：保存前转为 WebP（质量 60%）再写入本地并上传；取消勾选则上传原图。点「拍照」打开相机，拍完写入应用缓存并删掉临时文件，不把原图留在相册；压缩勾选对拍照同样生效。点列表缩略图或编辑页里的图片，可在应用内双指缩放、拖动查看，返回即回到标记。 |
 | 日期和时间 | 默认是当前时间，可改 |
+| 位置 | 新建/编辑默认勾选「附带位置」。有权限时用 GPS 或上次已知位置，尽量带上可读地名。拒绝定位权限仍可保存，只是不附带位置。位置存在条目上并随 WebDAV 同步。卡片和详情都会显示。 |
 | 颜色 | 本条卡片的颜色，存在条目上并随 WebDAV 同步。编辑页颜色条可左右滑动选择 |
 | 标签 | 可加多个。存在条目上并同步 |
 | 作者 | 显示添加者昵称；完成后还会显示是谁完成的 |
 
-已完成的条目：文字划线，卡片变淡。
+已完成的条目只出现在 **已完成** 分类：文字划线，卡片变淡。它们不会出现在 **全部** 或任何标签筛选里。右滑完成会移到「已完成」；在「已完成」里再右滑则取消完成，回到普通列表/标签。
 
 ### 手势（列表）
 
@@ -74,9 +75,9 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 顶栏刷新按钮、以及列表**下拉刷新**，都会做一次**增量** WebDAV 同步（不是整库重下）。
 
-### 标签筛选
+### 分类与标签
 
-列表上方会出现已有标签。点某个标签只显示带该标签的条目；点 **全部** 取消筛选。筛选只看本机已同步下来的列表，不会为此去全量下载。
+列表上方是 **全部**、**已完成**，以及已有标签。**全部**和标签筛选只显示未完成的标记。已完成的只能点 **已完成** 查看。点某个标签只显示带该标签的未完成条目。筛选只看本机已同步下来的列表，不会为此去全量下载。
 
 ---
 
@@ -84,7 +85,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 - **本地优先**：创建、修改、完成、删除都先写入本机，再上传。
 - **增量**：打开应用、下拉刷新、顶栏同步，都是先 PROPFIND 条目的 ETag，只有变了或新增的 JSON / 附件才会 GET。不会每次把所有内容重新下完。
-- **冲突**：正文、时间、附件、颜色、标签按较新的内容时间合并；完成/删除按较新的状态时间合并。
+- **冲突**：正文、时间、附件、颜色、标签、位置按较新的内容时间合并；完成/删除按较新的状态时间合并。
 - 数据在你的 WebDAV 上大致是：
 
 ```
@@ -138,7 +139,7 @@ MarkQ is a team marking / shared checklist app for Android 8+. Shared data lives
 
 Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the server URL, folder, and credentials; the nickname is still entered locally.
 
-Marks support text, images, files, datetime, a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. Swipe right to complete (or uncomplete). Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
+Marks support text, images, files, datetime, location (GPS / last known, default on; save still works if permission is denied), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category, not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow; cards have a green border and shadow.
 

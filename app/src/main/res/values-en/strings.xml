@@ -26,9 +26,12 @@
     <string name="add_mark">Add mark</string>
     <string name="syncing">Syncing…</string>
     <string name="empty_marks">No marks yet. Tap + to add one.</string>
+    <string name="empty_active_marks">No open marks. Completed ones are in Completed.</string>
+    <string name="empty_completed">No completed marks yet.</string>
     <string name="empty_tag_filter">No marks with this tag.</string>
     <string name="tags_label">Tags</string>
     <string name="tags_all">All</string>
+    <string name="filter_completed">Completed</string>
     <string name="tag_add">Add a tag</string>
     <string name="tag_add_action">Add</string>
     <string name="delete_title">Delete this mark?</string>
@@ -50,6 +53,9 @@
     <string name="date_and_time">Date and time</string>
     <string name="change_date">Change date</string>
     <string name="change_time">Change time</string>
+    <string name="include_location">Attach location (on by default)</string>
+    <string name="locating">Finding location…</string>
+    <string name="location_unavailable">No location yet; save will omit it</string>
     <string name="add_images">Add images</string>
     <string name="take_photo">Camera</string>
     <string name="add_files">Add files</string>

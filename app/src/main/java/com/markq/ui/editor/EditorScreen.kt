@@ -1,5 +1,6 @@
 package com.markq.ui.editor
 
+import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
@@ -61,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
+import com.markq.core.MarkPlace
 import com.markq.ui.ImageViewer
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
@@ -89,8 +92,31 @@ fun EditorScreen(
 
     LaunchedEffect(entryId, templateId) { vm.load(entryId, templateId) }
 
+    LaunchedEffect(state.loaded) {
+        if (state.loaded) vm.prepareLocation(context)
+    }
+
     LaunchedEffect(state.saved) {
         if (state.saved) onDone()
+    }
+
+    val locationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        vm.onLocationPermission(context, granted)
+    }
+
+    LaunchedEffect(state.needLocationPermission) {
+        if (state.needLocationPermission) {
+            locationPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
     }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -230,6 +256,42 @@ fun EditorScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { showDate = true }) { Text(stringResource(R.string.change_date)) }
                 OutlinedButton(onClick = { showTime = true }) { Text(stringResource(R.string.change_time)) }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = state.includeLocation,
+                    onCheckedChange = { vm.setIncludeLocation(context, it) },
+                )
+                Text(
+                    stringResource(R.string.include_location),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable { vm.setIncludeLocation(context, !state.includeLocation) },
+                )
+            }
+            if (state.includeLocation) {
+                val place = MarkPlace.formatOrNull(state.latitude, state.longitude, state.placeName)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Place,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        when {
+                            state.locating && place == null -> stringResource(R.string.locating)
+                            place != null -> place
+                            else -> stringResource(R.string.location_unavailable)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
             }
             Spacer(Modifier.height(16.dp))
             FlowRow(

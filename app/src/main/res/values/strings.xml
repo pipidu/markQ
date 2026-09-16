@@ -26,9 +26,12 @@
     <string name="add_mark">添加标记</string>
     <string name="syncing">正在同步…</string>
     <string name="empty_marks">还没有标记。点右下角 + 添加。</string>
+    <string name="empty_active_marks">没有未完成的标记。已完成的在「已完成」里。</string>
+    <string name="empty_completed">还没有已完成的标记。</string>
     <string name="empty_tag_filter">没有带这个标签的标记。</string>
     <string name="tags_label">标签</string>
     <string name="tags_all">全部</string>
+    <string name="filter_completed">已完成</string>
     <string name="tag_add">添加标签</string>
     <string name="tag_add_action">添加</string>
     <string name="delete_title">删除这条标记？</string>
@@ -50,6 +53,9 @@
     <string name="date_and_time">日期和时间</string>
     <string name="change_date">更改日期</string>
     <string name="change_time">更改时间</string>
+    <string name="include_location">附带位置（默认开启）</string>
+    <string name="locating">正在定位…</string>
+    <string name="location_unavailable">未获取到位置，保存时不附带</string>
     <string name="add_images">添加图片</string>
     <string name="take_photo">拍照</string>
     <string name="add_files">添加文件</string>

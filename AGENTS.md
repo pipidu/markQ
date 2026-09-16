@@ -17,7 +17,8 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - Swipe right marks an item complete. If it is already complete, swipe right uncompletes it. Swipe left deletes. Delete requires a second confirmation. Swipe distance must be high enough that a light flick cannot trigger complete or delete. The complete/delete color and icon must track the finger, and the settle/snap animation must finish.
 - Each mark has an editable color that is stored on the entry and synced over WebDAV.
 - Marks can have tags. Tags are stored on the entry and synced over WebDAV. The list can be filtered by tag locally (on already-synced entries).
-- Completed items show strikethrough and/or a gray filter.
+- Completed marks appear only in the 「已完成」 category (strikethrough and/or a gray filter). They must not appear in 「全部」 or in any tag filter. Completing a mark moves it there; uncompleting returns it to the normal list and tags.
+- Each mark can attach a location (lat/lng, and a readable place name when cheap). Default on when creating or editing. Use GPS or last-known location. Request runtime location permission; if denied, still allow saving without location. Location syncs with the entry over WebDAV.
 - The top/app bar stays compact (short height, no extra vertical padding).
 - Background, top/app bar, and + FAB colors are user-adjustable in Settings and stored on the device. Defaults: top bar green (`#0B6E4F`), background white, cards green border with shadow, + button white with shadow. Per-entry card colors stay on the entry and still sync.
 - Cards stay visually distinct from the screen background.
@@ -89,6 +90,9 @@ Entry JSON (`schemaVersion` 1):
   "deletedAt": null,
   "color": "#5B8DEF",
   "tags": ["work"],
+  "latitude": 31.2304,
+  "longitude": 121.4737,
+  "placeName": "上海市黄浦区",
   "attachments": [
     {
       "id": "uuid",
@@ -120,7 +124,7 @@ Template JSON (`schemaVersion` 1) lives at `templates/{id}.json`. Same increment
 
 ### Conflict merge
 
-- Content fields (`text`, `occurredAt`, `attachments`, `color`, `tags`) follow newer `contentUpdatedAt`.
+- Content fields (`text`, `occurredAt`, `attachments`, `color`, `tags`, `latitude`, `longitude`, `placeName`) follow newer `contentUpdatedAt`.
 - Status fields (`completed*`, `deleted*`) follow newer `statusUpdatedAt`.
 - Equal timestamps: deterministic tie-break so clients converge (compare `updatedBy` then payload).
 

@@ -87,12 +87,16 @@ class MarkRepository(
         color: String?,
         tags: List<String> = emptyList(),
         attachments: List<PendingAttachment>,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        placeName: String? = null,
     ) {
         val cfg = settings.current()
         requireNickname(cfg.nickname)
         val now = Instant.now()
         val id = UUID.randomUUID().toString()
         val stored = storeNewAttachments(id, attachments)
+        val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val entry = MarkEntry(
             id = id,
             occurredAt = occurredAt,
@@ -104,6 +108,9 @@ class MarkRepository(
             updatedBy = cfg.nickname,
             color = com.markq.core.MarkColor.normalize(color),
             tags = com.markq.core.MarkTags.normalize(tags),
+            latitude = if (hasPlace) latitude else null,
+            longitude = if (hasPlace) longitude else null,
+            placeName = if (hasPlace) placeName?.trim()?.ifBlank { null } else null,
             attachments = stored.map {
                 MarkAttachment(it.id, it.name, it.mime, it.kind, it.size, it.sha256)
             },
@@ -122,6 +129,9 @@ class MarkRepository(
         tags: List<String> = emptyList(),
         keepAttachmentIds: List<String>,
         newAttachments: List<PendingAttachment>,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        placeName: String? = null,
     ) {
         val row = db.entries().get(id) ?: return
         val cfg = settings.current()
@@ -130,11 +140,15 @@ class MarkRepository(
         val kept = row.attachments.filter { it.id in keepAttachmentIds }
         val added = storeNewAttachments(id, newAttachments)
         val all = kept + added
+        val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val model = row.toModel().copy(
             text = text,
             occurredAt = occurredAt,
             color = com.markq.core.MarkColor.normalize(color),
             tags = com.markq.core.MarkTags.normalize(tags),
+            latitude = if (hasPlace) latitude else null,
+            longitude = if (hasPlace) longitude else null,
+            placeName = if (hasPlace) placeName?.trim()?.ifBlank { null } else null,
             contentUpdatedAt = now,
             updatedBy = cfg.nickname,
             attachments = all.map {
