@@ -56,6 +56,7 @@
     <string name="include_location">Attach location (on by default)</string>
     <string name="locating">Finding location…</string>
     <string name="location_unavailable">No location yet; save will omit it</string>
+    <string name="location_open_maps">Navigate in maps</string>
     <string name="add_images">Add images</string>
     <string name="take_photo">Camera</string>
     <string name="add_files">Add files</string>

@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -85,6 +86,7 @@ import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.ImageViewer
+import com.markq.ui.MapsLauncher
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.LocalMarkQUiColors
 import com.markq.ui.theme.exclusiveHorizontalScroll
@@ -426,18 +428,29 @@ private fun MarkCard(
                     row.entry.placeName,
                 )
                 if (place != null) {
+                    val context = LocalContext.current
                     Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            MapsLauncher.open(
+                                context,
+                                row.entry.latitude,
+                                row.entry.longitude,
+                                row.entry.placeName,
+                            )
+                        },
+                    ) {
                         Icon(
                             Icons.Filled.Place,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            contentDescription = stringResource(R.string.location_open_maps),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
                             place,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(start = 4.dp),
@@ -533,11 +546,6 @@ private fun TagFilterRow(
             onClick = { onSelect(MarkListFilter.All) },
             label = { Text(stringResource(R.string.tags_all)) },
         )
-        FilterChip(
-            selected = selected is MarkListFilter.Completed,
-            onClick = { onSelect(MarkListFilter.Completed) },
-            label = { Text(stringResource(R.string.filter_completed)) },
-        )
         tags.forEach { tag ->
             val active = selected is MarkListFilter.Tag &&
                 selected.name.equals(tag, ignoreCase = true)
@@ -547,5 +555,10 @@ private fun TagFilterRow(
                 label = { Text(tag) },
             )
         }
+        FilterChip(
+            selected = selected is MarkListFilter.Completed,
+            onClick = { onSelect(MarkListFilter.Completed) },
+            label = { Text(stringResource(R.string.filter_completed)) },
+        )
     }
 }

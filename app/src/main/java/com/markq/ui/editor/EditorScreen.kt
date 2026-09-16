@@ -65,6 +65,7 @@ import com.markq.LocaleHelper
 import com.markq.R
 import com.markq.core.MarkPlace
 import com.markq.ui.ImageViewer
+import com.markq.ui.MapsLauncher
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
 import java.io.File
@@ -274,11 +275,25 @@ fun EditorScreen(
             }
             if (state.includeLocation) {
                 val place = MarkPlace.formatOrNull(state.latitude, state.longitude, state.placeName)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                val canOpenMaps = place != null
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = if (canOpenMaps) {
+                        Modifier.clickable {
+                            MapsLauncher.open(context, state.latitude, state.longitude, state.placeName)
+                        }
+                    } else {
+                        Modifier
+                    },
+                ) {
                     Icon(
                         Icons.Filled.Place,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = if (canOpenMaps) stringResource(R.string.location_open_maps) else null,
+                        tint = if (canOpenMaps) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
@@ -288,7 +303,11 @@ fun EditorScreen(
                             else -> stringResource(R.string.location_unavailable)
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (canOpenMaps) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.padding(start = 6.dp),
                     )
                 }

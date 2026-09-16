@@ -56,6 +56,7 @@
     <string name="include_location">附带位置（默认开启）</string>
     <string name="locating">正在定位…</string>
     <string name="location_unavailable">未获取到位置，保存时不附带</string>
+    <string name="location_open_maps">用地图导航</string>
     <string name="add_images">添加图片</string>
     <string name="take_photo">拍照</string>
     <string name="add_files">添加文件</string>

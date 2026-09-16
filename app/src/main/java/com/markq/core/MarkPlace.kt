@@ -1,5 +1,7 @@
 package com.markq.core
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 object MarkPlace {
@@ -16,6 +18,18 @@ object MarkPlace {
     fun formatOrNull(latitude: Double?, longitude: Double?, placeName: String?): String? {
         if (!hasFix(latitude, longitude)) return null
         return format(latitude!!, longitude!!, placeName)
+    }
+
+    fun geoUri(latitude: Double, longitude: Double, placeName: String?): String {
+        val coords = String.format(Locale.US, "%.6f,%.6f", latitude, longitude)
+        val label = placeName?.trim().orEmpty()
+        val q = if (label.isEmpty()) {
+            coords
+        } else {
+            val encoded = URLEncoder.encode(label, StandardCharsets.UTF_8.name()).replace("+", "%20")
+            "$coords($encoded)"
+        }
+        return "geo:$coords?q=$q"
     }
 }
 

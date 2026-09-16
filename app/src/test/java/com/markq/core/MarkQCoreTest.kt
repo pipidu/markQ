@@ -427,6 +427,18 @@ class MarkPlaceTest {
         assertTrue(MarkPlace.hasFix(31.23, 121.47))
         assertFalse(MarkPlace.hasFix(null, 121.47))
         assertEquals(null, MarkPlace.formatOrNull(null, null, "上海"))
+        assertEquals(
+            "geo:31.230400,121.473700?q=31.230400,121.473700(%E4%B8%8A%E6%B5%B7)",
+            MarkPlace.geoUri(31.2304, 121.4737, "上海"),
+        )
+        assertEquals(
+            "geo:31.230000,121.470000?q=31.230000,121.470000",
+            MarkPlace.geoUri(31.23, 121.47, null),
+        )
+        assertEquals(
+            MarkPlace.geoUri(31.23, 121.47, null),
+            MarkPlace.geoUri(31.23, 121.47, "  "),
+        )
     }
 }
 
