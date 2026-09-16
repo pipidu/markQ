@@ -2,7 +2,9 @@ package com.markq.data.remote
 
 import com.markq.core.EntryMerge
 import com.markq.core.MarkEntry
+import com.markq.core.MarkTemplate
 import com.markq.core.SyncErrors
+import com.markq.core.TemplateMerge
 import com.markq.data.local.AttachmentDao
 import com.markq.data.local.AttachmentEntity
 import com.markq.data.local.AttachmentStore
@@ -10,6 +12,7 @@ import com.markq.data.local.CursorDao
 import com.markq.data.local.EntryDao
 import com.markq.data.local.SettingsStore
 import com.markq.data.local.SyncCursorEntity
+import com.markq.data.local.TemplateDao
 import com.markq.data.local.toEntity
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +35,7 @@ class SyncEngine(
     private val dav: WebDavClient,
     private val entries: EntryDao,
     private val attachments: AttachmentDao,
+    private val templates: TemplateDao,
     private val cursors: CursorDao,
     private val files: AttachmentStore,
     private val settings: SettingsStore,
@@ -55,7 +59,9 @@ class SyncEngine(
             withContext(Dispatchers.IO) {
                 dav.ensureLayout(config)
                 pull(config)
+                pullTemplates(config)
                 push(config)
+                pushTemplates(config)
             }
             val now = System.currentTimeMillis()
             settings.setLastSync(now)
@@ -239,5 +245,63 @@ class SyncEngine(
             if (e.code != 412) throw e
         }
         return dav.put(config, url, retryBytes, contentType, ifMatch = null)
+    }
+
+    private suspend fun pullTemplates(config: WebDavConfig) {
+        val listing = try {
+            dav.propfind(config, dav.templatesUrl(config), depth = 1)
+        } catch (e: WebDavException) {
+            if (e.code == 404) return else throw e
+        }
+        for (resource in listing) {
+            if (resource.isCollection) continue
+            val name = resource.url.pathSegments.lastOrNull().orEmpty()
+            if (!name.endsWith(".json")) continue
+            val path = WebDavClient.cursorKey(resource.url)
+            val cursor = cursors.get(path)
+            if (!WebDavClient.needsDownload(cursor?.etag, cursor?.lastModified, resource)) {
+                continue
+            }
+            val got = dav.get(config, resource.url)
+            val remote = json.decodeFromString(RemoteTemplate.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
+            mergeRemoteTemplate(remote, got.etag ?: resource.etag)
+            cursors.upsert(SyncCursorEntity(path, got.etag ?: resource.etag, got.lastModified ?: resource.lastModified))
+        }
+    }
+
+    private suspend fun mergeRemoteTemplate(remote: MarkTemplate, etag: String?) {
+        val localRow = templates.get(remote.id)
+        val merged = if (localRow == null) {
+            remote
+        } else {
+            TemplateMerge.merge(localRow.toModel(), remote)
+        }
+        val localDirty = localRow?.dirty == true
+        val stillDirty = localDirty && merged != remote
+        templates.upsert(merged.toEntity(dirty = stillDirty, remoteEtag = etag))
+    }
+
+    private suspend fun pushTemplates(config: WebDavConfig) {
+        dav.ensurePath(config, dav.templatesUrl(config))
+        for (row in templates.getDirty()) {
+            try {
+                val model = row.toModel()
+                val url = dav.templateUrl(config, model.id)
+                val body = json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(model))
+                    .toByteArray(Charsets.UTF_8)
+                val etag = putWithRetry(config, url, body, "application/json; charset=utf-8", row.remoteEtag) {
+                    val got = dav.get(config, url)
+                    val remote = json.decodeFromString(RemoteTemplate.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
+                    val merged = TemplateMerge.merge(model, remote)
+                    templates.upsert(merged.toEntity(dirty = true, remoteEtag = got.etag))
+                    json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
+                }
+                val path = WebDavClient.cursorKey(url)
+                templates.markPushed(model.id, dirty = false, etag = etag)
+                cursors.upsert(SyncCursorEntity(path, etag, Instant.now().toString()))
+            } catch (e: WebDavException) {
+                if (e.code == 412) continue else throw e
+            }
+        }
     }
 }

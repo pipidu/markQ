@@ -51,11 +51,23 @@
     <string name="change_date">Change date</string>
     <string name="change_time">Change time</string>
     <string name="add_images">Add images</string>
+    <string name="take_photo">Camera</string>
     <string name="add_files">Add files</string>
     <string name="compress_images">Compress images before upload (WebP 60%, on by default)</string>
     <string name="remove">Remove</string>
     <string name="save">Save</string>
     <string name="saving">Saving…</string>
+    <string name="from_template">Add from template</string>
+    <string name="templates">Mark templates</string>
+    <string name="create_template">Create template</string>
+    <string name="edit_template">Edit template</string>
+    <string name="template_name">Template name</string>
+    <string name="save_template">Save template</string>
+    <string name="use_template">Add a mark from this template</string>
+    <string name="empty_templates">No templates yet. Tap + to create one, then use it to add marks.</string>
+    <string name="unnamed_template">Untitled template</string>
+    <string name="delete_template_title">Delete this template?</string>
+    <string name="delete_template_body">This removes it for everyone on the shared server.</string>
     <string name="save_server">Save server</string>
     <string name="share_code">Share code</string>
     <string name="share_code_help">Send this to teammates so they can join the same WebDAV folder. Recipients must still set their own nickname.</string>
@@ -88,4 +100,5 @@
     <string name="error_update_empty">Update package is empty</string>
     <string name="error_update_failed">Update failed</string>
     <string name="error_no_apk_asset">No APK in the GitHub release</string>
+    <string name="error_no_camera">Could not open the camera</string>
 </resources>

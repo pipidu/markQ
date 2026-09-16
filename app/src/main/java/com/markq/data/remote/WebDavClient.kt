@@ -37,8 +37,13 @@ class WebDavClient(
 
     fun filesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "files")
 
+    fun templatesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "templates")
+
     fun entryUrl(config: WebDavConfig, id: String): HttpUrl =
         join(config.baseUrl, "entries", "$id.json")
+
+    fun templateUrl(config: WebDavConfig, id: String): HttpUrl =
+        join(config.baseUrl, "templates", "$id.json")
 
     fun attachmentUrl(config: WebDavConfig, entryId: String, attachId: String): HttpUrl =
         join(config.baseUrl, "files", entryId, attachId)
@@ -51,6 +56,7 @@ class WebDavClient(
         ensurePath(config, join(config.baseUrl))
         ensurePath(config, entriesUrl(config))
         ensurePath(config, filesUrl(config))
+        ensurePath(config, templatesUrl(config))
     }
 
     fun ensurePath(config: WebDavConfig, target: HttpUrl) {

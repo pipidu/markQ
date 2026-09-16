@@ -51,11 +51,23 @@
     <string name="change_date">更改日期</string>
     <string name="change_time">更改时间</string>
     <string name="add_images">添加图片</string>
+    <string name="take_photo">拍照</string>
     <string name="add_files">添加文件</string>
     <string name="compress_images">压缩图片后上传（WebP 60%，默认开启）</string>
     <string name="remove">移除</string>
     <string name="save">保存</string>
     <string name="saving">正在保存…</string>
+    <string name="from_template">从模板添加</string>
+    <string name="templates">标记模板</string>
+    <string name="create_template">创建模板</string>
+    <string name="edit_template">编辑模板</string>
+    <string name="template_name">模板名称</string>
+    <string name="save_template">保存模板</string>
+    <string name="use_template">用此模板添加标记</string>
+    <string name="empty_templates">还没有模板。点 + 创建模板，然后就能用它快速添加标记。</string>
+    <string name="unnamed_template">未命名模板</string>
+    <string name="delete_template_title">删除这个模板？</string>
+    <string name="delete_template_body">删除后，共用该服务器的所有人都会看到这个模板被删除。</string>
     <string name="save_server">保存服务器</string>
     <string name="share_code">分享码</string>
     <string name="share_code_help">把分享码发给队友，即可一起标记同一 WebDAV 目录。对方仍需填写自己的昵称。</string>
@@ -88,4 +100,5 @@
     <string name="error_update_empty">更新包为空</string>
     <string name="error_update_failed">更新失败</string>
     <string name="error_no_apk_asset">发行版中没有 APK</string>
+    <string name="error_no_camera">无法打开相机</string>
 </resources>

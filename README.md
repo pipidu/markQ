@@ -50,14 +50,14 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 ## 标记
 
-右下角 **+** 新建。列表里点一张卡片进入**可编辑**的详情（不是只读）：文字、图片、文件、日期时间、颜色、标签。保存后先写本地，再同步到 WebDAV。
+右下角 **+** 新建。旁边记事本按钮打开**标记模板**：可创建模板，或用模板添加标记。模板可预填文字、颜色、标签；用模板新建时，日期时间仍默认现在。列表里点一张卡片进入**可编辑**的详情（不是只读）：文字、图片、文件、日期时间、颜色、标签。保存后先写本地，再同步到 WebDAV。连点保存只会创建一条。
 
 每条标记包括：
 
 | 内容 | 说明 |
 | --- | --- |
 | 文字 | 可空，列表会显示「（无文字）」 |
-| 图片 / 文件 | 编辑页添加或移除。添加图片时默认勾选「压缩图片后上传」：保存前转为 WebP（质量 60%）再写入本地并上传；取消勾选则上传原图。点列表缩略图或编辑页里的图片，可在应用内双指缩放、拖动查看，返回即回到标记。 |
+| 图片 / 文件 | 编辑页添加或移除。添加图片时默认勾选「压缩图片后上传」：保存前转为 WebP（质量 60%）再写入本地并上传；取消勾选则上传原图。点「拍照」打开相机，拍完写入应用缓存并删掉临时文件，不把原图留在相册；压缩勾选对拍照同样生效。点列表缩略图或编辑页里的图片，可在应用内双指缩放、拖动查看，返回即回到标记。 |
 | 日期和时间 | 默认是当前时间，可改 |
 | 颜色 | 本条卡片的颜色，存在条目上并随 WebDAV 同步。编辑页颜色条可左右滑动选择 |
 | 标签 | 可加多个。存在条目上并同步 |
@@ -91,6 +91,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 {服务器}/{保存目录}/
   entries/{条目id}.json
   files/{条目id}/{附件id}
+  templates/{模板id}.json
 ```
 
 昵称、外观主题只存在本机，不随 WebDAV 同步。
@@ -137,7 +138,7 @@ MarkQ is a team marking / shared checklist app for Android 8+. Shared data lives
 
 Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the server URL, folder, and credentials; the nickname is still entered locally.
 
-Marks support text, images, files, datetime, a per-entry color, and tags. New images can be compressed to WebP (60%, default on) before upload. Tap an image for an in-app pinch-zoom viewer. Tap a card to edit. Swipe right to complete (or uncomplete). Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
+Marks support text, images, files, datetime, a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. Swipe right to complete (or uncomplete). Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow; cards have a green border and shadow.
 

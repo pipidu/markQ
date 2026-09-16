@@ -13,6 +13,7 @@ import com.markq.data.UpdateManager
 import com.markq.data.local.AttachmentStore
 import com.markq.data.local.MIGRATION_1_2
 import com.markq.data.local.MIGRATION_2_3
+import com.markq.data.local.MIGRATION_3_4
 import com.markq.data.local.MarkDatabase
 import com.markq.data.local.SettingsStore
 import com.markq.data.remote.SyncEngine
@@ -34,14 +35,14 @@ class AppContainer(app: Application) {
         .build()
 
     val db: MarkDatabase = Room.databaseBuilder(app, MarkDatabase::class.java, "markq.db")
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .fallbackToDestructiveMigration()
         .build()
 
     val settings = SettingsStore(app)
     val files = AttachmentStore(app)
     val dav = WebDavClient(http)
-    val sync = SyncEngine(dav, db.entries(), db.attachments(), db.cursors(), files, settings)
+    val sync = SyncEngine(dav, db.entries(), db.attachments(), db.templates(), db.cursors(), files, settings)
     val repository = MarkRepository(db, settings, files, sync, app)
     val updateChecker = UpdateChecker(http, app)
     val updateManager = UpdateManager(updateChecker, app)

@@ -22,6 +22,10 @@ inline fun <reified VM : ViewModel> appViewModel(): VM {
                     com.markq.ui.settings.SettingsViewModel::class.java ->
                         com.markq.ui.settings.SettingsViewModel(repo, updates, app)
                     com.markq.ui.editor.EditorViewModel::class.java -> com.markq.ui.editor.EditorViewModel(repo)
+                    com.markq.ui.templates.TemplateListViewModel::class.java ->
+                        com.markq.ui.templates.TemplateListViewModel(repo)
+                    com.markq.ui.templates.TemplateEditorViewModel::class.java ->
+                        com.markq.ui.templates.TemplateEditorViewModel(repo)
                     com.markq.ui.MainViewModel::class.java -> com.markq.ui.MainViewModel(repo, updates)
                     else -> error("Unknown ViewModel ${modelClass.simpleName}")
                 }

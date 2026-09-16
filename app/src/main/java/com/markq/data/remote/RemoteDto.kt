@@ -96,3 +96,55 @@ data class RemoteEntry(
         )
     }
 }
+
+@Serializable
+data class RemoteTemplate(
+    val id: String,
+    val schemaVersion: Int = 1,
+    val name: String = "",
+    val text: String = "",
+    val color: String? = null,
+    val tags: List<String> = emptyList(),
+    val createdAt: String,
+    val contentUpdatedAt: String,
+    val statusUpdatedAt: String,
+    val createdBy: String,
+    val updatedBy: String,
+    val deleted: Boolean = false,
+    val deletedBy: String? = null,
+    val deletedAt: String? = null,
+) {
+    fun toModel(): com.markq.core.MarkTemplate = com.markq.core.MarkTemplate(
+        id = id,
+        name = name,
+        text = text,
+        color = color,
+        tags = com.markq.core.MarkTags.normalize(tags),
+        createdAt = IsoTime.parseRequired(createdAt),
+        contentUpdatedAt = IsoTime.parseRequired(contentUpdatedAt),
+        statusUpdatedAt = IsoTime.parseRequired(statusUpdatedAt),
+        createdBy = createdBy,
+        updatedBy = updatedBy,
+        deleted = deleted,
+        deletedBy = deletedBy,
+        deletedAt = IsoTime.parse(deletedAt),
+    )
+
+    companion object {
+        fun from(template: com.markq.core.MarkTemplate): RemoteTemplate = RemoteTemplate(
+            id = template.id,
+            name = template.name,
+            text = template.text,
+            color = template.color,
+            tags = com.markq.core.MarkTags.normalize(template.tags),
+            createdAt = IsoTime.format(template.createdAt),
+            contentUpdatedAt = IsoTime.format(template.contentUpdatedAt),
+            statusUpdatedAt = IsoTime.format(template.statusUpdatedAt),
+            createdBy = template.createdBy,
+            updatedBy = template.updatedBy,
+            deleted = template.deleted,
+            deletedBy = template.deletedBy,
+            deletedAt = template.deletedAt?.let(IsoTime::format),
+        )
+    }
+}

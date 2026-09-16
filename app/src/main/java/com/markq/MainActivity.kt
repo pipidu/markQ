@@ -40,6 +40,8 @@ import com.markq.ui.editor.EditorScreen
 import com.markq.ui.home.HomeScreen
 import com.markq.ui.settings.SettingsScreen
 import com.markq.ui.setup.SetupScreen
+import com.markq.ui.templates.TemplateEditorScreen
+import com.markq.ui.templates.TemplateListScreen
 import com.markq.ui.theme.MarkQTheme
 
 class MainActivity : ComponentActivity() {
@@ -95,12 +97,46 @@ class MainActivity : ComponentActivity() {
                         composable("home") {
                             HomeScreen(
                                 onAdd = { nav.navigate("editor") },
+                                onTemplates = { nav.navigate("templates") },
                                 onOpen = { id -> nav.navigate("editor?entryId=$id") },
                                 onSettings = { nav.navigate("settings") },
                             )
                         }
                         composable("settings") {
                             SettingsScreen(onBack = { nav.popBackStack() })
+                        }
+                        composable("templates") {
+                            TemplateListScreen(
+                                onBack = { nav.popBackStack() },
+                                onCreate = { nav.navigate("template") },
+                                onEdit = { id -> nav.navigate("template/$id") },
+                                onUse = { id ->
+                                    nav.navigate("fromTemplate/$id") {
+                                        popUpTo("templates") { inclusive = true }
+                                    }
+                                },
+                            )
+                        }
+                        composable("template") {
+                            TemplateEditorScreen(onDone = { nav.popBackStack() })
+                        }
+                        composable(
+                            route = "template/{templateId}",
+                            arguments = listOf(navArgument("templateId") { type = NavType.StringType }),
+                        ) { back ->
+                            TemplateEditorScreen(
+                                templateId = back.arguments?.getString("templateId"),
+                                onDone = { nav.popBackStack() },
+                            )
+                        }
+                        composable(
+                            route = "fromTemplate/{templateId}",
+                            arguments = listOf(navArgument("templateId") { type = NavType.StringType }),
+                        ) { back ->
+                            EditorScreen(
+                                templateId = back.arguments?.getString("templateId"),
+                                onDone = { nav.popBackStack() },
+                            )
                         }
                         composable(
                             route = "editor?entryId={entryId}",

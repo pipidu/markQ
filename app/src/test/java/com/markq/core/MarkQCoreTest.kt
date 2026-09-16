@@ -346,3 +346,55 @@ class ImageNamesTest {
         assertEquals("image/webp", ImageNames.WEBP_MIME)
     }
 }
+
+class TemplateMergeTest {
+    private fun base() = MarkTemplate(
+        id = "t1",
+        name = "standup",
+        text = "daily notes",
+        color = "#5B8DEF",
+        tags = listOf("work"),
+        createdAt = java.time.Instant.parse("2026-01-01T10:00:00Z"),
+        contentUpdatedAt = java.time.Instant.parse("2026-01-01T10:00:00Z"),
+        statusUpdatedAt = java.time.Instant.parse("2026-01-01T10:00:00Z"),
+        createdBy = "ann",
+        updatedBy = "ann",
+    )
+
+    @Test
+    fun contentFollowsNewerTimestamp() {
+        val local = base().copy(
+            text = "local text",
+            tags = listOf("home"),
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T12:00:00Z"),
+        )
+        val remote = base().copy(
+            text = "remote text",
+            tags = listOf("work"),
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T11:00:00Z"),
+        )
+        val merged = TemplateMerge.merge(local, remote)
+        assertEquals("local text", merged.text)
+        assertEquals(listOf("home"), merged.tags)
+        assertEquals("standup", merged.name)
+    }
+
+    @Test
+    fun deleteFollowsStatusTimestamp() {
+        val local = base().copy(
+            text = "keep",
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T12:00:00Z"),
+        )
+        val remote = base().copy(
+            deleted = true,
+            deletedBy = "bob",
+            deletedAt = java.time.Instant.parse("2026-01-01T13:00:00Z"),
+            statusUpdatedAt = java.time.Instant.parse("2026-01-01T13:00:00Z"),
+            updatedBy = "bob",
+        )
+        val merged = TemplateMerge.merge(local, remote)
+        assertTrue(merged.deleted)
+        assertEquals("bob", merged.deletedBy)
+        assertEquals("keep", merged.text)
+    }
+}

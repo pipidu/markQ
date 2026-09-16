@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -40,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
@@ -94,6 +96,7 @@ import kotlin.math.abs
 @Composable
 fun HomeScreen(
     onAdd: () -> Unit,
+    onTemplates: () -> Unit,
     onOpen: (String) -> Unit,
     onSettings: () -> Unit,
     vm: HomeViewModel = appViewModel(),
@@ -129,16 +132,35 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAdd,
-                containerColor = ui.fab,
-                contentColor = ui.onFab,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 8.dp,
-                ),
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_mark))
+                SmallFloatingActionButton(
+                    onClick = onTemplates,
+                    containerColor = ui.fab,
+                    contentColor = ui.onFab,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Filled.NoteAlt,
+                        contentDescription = stringResource(R.string.from_template),
+                    )
+                }
+                FloatingActionButton(
+                    onClick = onAdd,
+                    containerColor = ui.fab,
+                    contentColor = ui.onFab,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp,
+                    ),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_mark))
+                }
             }
         },
         containerColor = ui.background,

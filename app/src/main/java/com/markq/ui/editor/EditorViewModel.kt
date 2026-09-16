@@ -53,18 +53,25 @@ class EditorViewModel(
     private val _state = MutableStateFlow(EditorUiState())
     val state: StateFlow<EditorUiState> = _state.asStateFlow()
 
-    fun load(entryId: String?) {
+    fun load(entryId: String?, templateId: String? = null) {
         if (_state.value.loaded) return
-        if (entryId.isNullOrBlank()) {
+        if (!entryId.isNullOrBlank()) {
+            viewModelScope.launch { loadEntry(entryId) }
+            return
+        }
+        if (!templateId.isNullOrBlank()) {
+            viewModelScope.launch { loadTemplate(templateId) }
+            return
+        }
+        _state.update { it.copy(loaded = true) }
+    }
+
+    private suspend fun loadEntry(entryId: String) {
+        val row = repo.getEntry(entryId)
+        if (row == null) {
             _state.update { it.copy(loaded = true) }
             return
         }
-        viewModelScope.launch {
-            val row = repo.getEntry(entryId)
-            if (row == null) {
-                _state.update { it.copy(loaded = true) }
-                return@launch
-            }
             val zone = Instant.ofEpochMilli(row.entry.occurredAt).atZone(ZoneId.systemDefault())
             _state.update {
                 it.copy(
@@ -87,6 +94,22 @@ class EditorViewModel(
                     loaded = true,
                 )
             }
+    }
+
+    private suspend fun loadTemplate(templateId: String) {
+        val row = repo.getTemplate(templateId)
+        if (row == null) {
+            _state.update { it.copy(loaded = true) }
+            return
+        }
+        val model = row.toModel()
+        _state.update {
+            it.copy(
+                text = model.text,
+                color = model.color,
+                tags = model.tags,
+                loaded = true,
+            )
         }
     }
 
@@ -109,6 +132,29 @@ class EditorViewModel(
     }
 
     fun setCompressImages(value: Boolean) = _state.update { it.copy(compressImages = value) }
+
+    fun showError(message: String) = _state.update { it.copy(error = message) }
+
+    fun addCameraCapture(context: Context, file: File) {
+        try {
+            if (!file.exists() || file.length() <= 0L) return
+            val pending = File(context.cacheDir, "pending").apply { mkdirs() }
+            val dest = File(pending, UUID.randomUUID().toString())
+            file.inputStream().use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            val extra = DraftAttachment(
+                key = UUID.randomUUID().toString(),
+                uri = Uri.fromFile(dest),
+                name = file.name.ifBlank { "photo.jpg" },
+                mime = "image/jpeg",
+                fromImagePicker = true,
+            )
+            _state.update { it.copy(attachments = it.attachments + extra) }
+        } finally {
+            CaptureUris.deleteQuietly(file)
+        }
+    }
 
     fun addUris(context: Context, uris: List<Uri>, fromImagePicker: Boolean) {
         val pending = File(context.cacheDir, "pending").apply { mkdirs() }
@@ -136,9 +182,17 @@ class EditorViewModel(
     }
 
     fun save() {
-        val s = _state.value
+        var snapshot: EditorUiState? = null
+        _state.update { current ->
+            if (current.busy || current.saved) {
+                current
+            } else {
+                snapshot = current
+                current.copy(busy = true, error = null)
+            }
+        }
+        val s = snapshot ?: return
         viewModelScope.launch {
-            _state.update { it.copy(busy = true, error = null) }
             val occurred = s.date.atTime(s.time).atZone(ZoneId.systemDefault()).toInstant()
             runCatching {
                 val compress = s.compressImages

@@ -5,6 +5,7 @@ import android.net.Uri
 import com.markq.R
 import com.markq.core.MarkAttachment
 import com.markq.core.MarkEntry
+import com.markq.core.MarkTemplate
 import com.markq.data.local.AppSettings
 import com.markq.data.local.AttachmentEntity
 import com.markq.data.local.AttachmentStore
@@ -12,6 +13,7 @@ import com.markq.data.local.CacheJanitor
 import com.markq.data.local.EntryWithAttachments
 import com.markq.data.local.MarkDatabase
 import com.markq.data.local.SettingsStore
+import com.markq.data.local.TemplateEntity
 import com.markq.data.local.toEntity
 import com.markq.data.remote.SyncEngine
 import com.markq.data.remote.SyncUiState
@@ -31,12 +33,15 @@ class MarkRepository(
     val settingsFlow: Flow<AppSettings> = settings.settings
     val syncState: StateFlow<SyncUiState> = sync.state
     val entries: Flow<List<EntryWithAttachments>> = db.entries().observeActive()
+    val templates: Flow<List<TemplateEntity>> = db.templates().observeActive()
 
     suspend fun currentSettings(): AppSettings = settings.current()
 
     fun observeEntry(id: String): Flow<EntryWithAttachments?> = db.entries().observeById(id)
 
     suspend fun getEntry(id: String): EntryWithAttachments? = db.entries().get(id)
+
+    suspend fun getTemplate(id: String): TemplateEntity? = db.templates().get(id)
 
     suspend fun saveServer(
         nickname: String,
@@ -186,6 +191,70 @@ class MarkRepository(
             updatedBy = cfg.nickname,
         )
         db.entries().upsert(model.toEntity(dirty = true, remoteEtag = row.entry.remoteEtag))
+        sync.sync()
+    }
+
+    suspend fun createTemplate(
+        name: String,
+        text: String,
+        color: String?,
+        tags: List<String>,
+    ) {
+        val cfg = settings.current()
+        requireNickname(cfg.nickname)
+        val now = Instant.now()
+        val model = MarkTemplate(
+            id = UUID.randomUUID().toString(),
+            name = name.trim(),
+            text = text.trim(),
+            color = com.markq.core.MarkColor.normalize(color),
+            tags = com.markq.core.MarkTags.normalize(tags),
+            createdAt = now,
+            contentUpdatedAt = now,
+            statusUpdatedAt = now,
+            createdBy = cfg.nickname,
+            updatedBy = cfg.nickname,
+        )
+        db.templates().upsert(model.toEntity(dirty = true, remoteEtag = null))
+        sync.sync()
+    }
+
+    suspend fun updateTemplate(
+        id: String,
+        name: String,
+        text: String,
+        color: String?,
+        tags: List<String>,
+    ) {
+        val row = db.templates().get(id) ?: return
+        val cfg = settings.current()
+        requireNickname(cfg.nickname)
+        val now = Instant.now()
+        val model = row.toModel().copy(
+            name = name.trim(),
+            text = text.trim(),
+            color = com.markq.core.MarkColor.normalize(color),
+            tags = com.markq.core.MarkTags.normalize(tags),
+            contentUpdatedAt = now,
+            updatedBy = cfg.nickname,
+        )
+        db.templates().upsert(model.toEntity(dirty = true, remoteEtag = row.remoteEtag))
+        sync.sync()
+    }
+
+    suspend fun deleteTemplate(id: String) {
+        val row = db.templates().get(id) ?: return
+        val cfg = settings.current()
+        requireNickname(cfg.nickname)
+        val now = Instant.now()
+        val model = row.toModel().copy(
+            deleted = true,
+            deletedBy = cfg.nickname,
+            deletedAt = now,
+            statusUpdatedAt = now,
+            updatedBy = cfg.nickname,
+        )
+        db.templates().upsert(model.toEntity(dirty = true, remoteEtag = row.remoteEtag))
         sync.sync()
     }
 

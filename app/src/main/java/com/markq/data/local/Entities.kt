@@ -90,6 +90,59 @@ data class EntryWithAttachments(
     )
 }
 
+@Entity(tableName = "templates")
+data class TemplateEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val text: String,
+    val color: String?,
+    val tags: String = "",
+    val createdAt: Long,
+    val contentUpdatedAt: Long,
+    val statusUpdatedAt: Long,
+    val createdBy: String,
+    val updatedBy: String,
+    val deleted: Boolean,
+    val deletedBy: String?,
+    val deletedAt: Long?,
+    val dirty: Boolean,
+    val remoteEtag: String?,
+) {
+    fun toModel(): com.markq.core.MarkTemplate = com.markq.core.MarkTemplate(
+        id = id,
+        name = name,
+        text = text,
+        color = color,
+        tags = com.markq.core.MarkTags.decode(tags),
+        createdAt = Instant.ofEpochMilli(createdAt),
+        contentUpdatedAt = Instant.ofEpochMilli(contentUpdatedAt),
+        statusUpdatedAt = Instant.ofEpochMilli(statusUpdatedAt),
+        createdBy = createdBy,
+        updatedBy = updatedBy,
+        deleted = deleted,
+        deletedBy = deletedBy,
+        deletedAt = deletedAt?.let(Instant::ofEpochMilli),
+    )
+}
+
+fun com.markq.core.MarkTemplate.toEntity(dirty: Boolean, remoteEtag: String?): TemplateEntity = TemplateEntity(
+    id = id,
+    name = name,
+    text = text,
+    color = color,
+    tags = com.markq.core.MarkTags.encode(tags),
+    createdAt = createdAt.toEpochMilli(),
+    contentUpdatedAt = contentUpdatedAt.toEpochMilli(),
+    statusUpdatedAt = statusUpdatedAt.toEpochMilli(),
+    createdBy = createdBy,
+    updatedBy = updatedBy,
+    deleted = deleted,
+    deletedBy = deletedBy,
+    deletedAt = deletedAt?.toEpochMilli(),
+    dirty = dirty,
+    remoteEtag = remoteEtag,
+)
+
 fun MarkEntry.toEntity(dirty: Boolean, remoteEtag: String?): EntryEntity = EntryEntity(
     id = id,
     occurredAt = occurredAt.toEpochMilli(),

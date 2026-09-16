@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
@@ -62,16 +64,19 @@ import com.markq.R
 import com.markq.ui.ImageViewer
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import androidx.core.content.FileProvider
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(
     entryId: String? = null,
+    templateId: String? = null,
     onDone: () -> Unit,
     vm: EditorViewModel = appViewModel(),
 ) {
@@ -80,8 +85,9 @@ fun EditorScreen(
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<DraftAttachment?>(null) }
+    var pendingCapturePath by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(entryId) { vm.load(entryId) }
+    LaunchedEffect(entryId, templateId) { vm.load(entryId, templateId) }
 
     LaunchedEffect(state.saved) {
         if (state.saved) onDone()
@@ -94,6 +100,40 @@ fun EditorScreen(
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> if (uris.isNotEmpty()) vm.addUris(context, uris, fromImagePicker = false) }
+
+    val takePicture = rememberLauncherForActivityResult(
+        TakePictureToCache(),
+    ) { success ->
+        val path = pendingCapturePath
+        pendingCapturePath = null
+        val file = path?.let(::File)
+        if (file != null) {
+            runCatching {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    CaptureUris.authority(context),
+                    file,
+                )
+                CaptureUris.revoke(context, uri)
+            }
+        }
+        if (success && file != null) {
+            vm.addCameraCapture(context, file)
+        } else {
+            CaptureUris.deleteQuietly(file)
+        }
+    }
+
+    fun launchCamera() {
+        val (file, uri) = CaptureUris.createTempJpeg(context)
+        pendingCapturePath = file.absolutePath
+        runCatching { takePicture.launch(uri) }.onFailure {
+            CaptureUris.revoke(context, uri)
+            CaptureUris.deleteQuietly(file)
+            pendingCapturePath = null
+            vm.showError(context.getString(R.string.error_no_camera))
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -192,10 +232,22 @@ fun EditorScreen(
                 OutlinedButton(onClick = { showTime = true }) { Text(stringResource(R.string.change_time)) }
             }
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedButton(onClick = {
                     imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }) { Text(stringResource(R.string.add_images)) }
+                OutlinedButton(onClick = { launchCamera() }) {
+                    Icon(
+                        Icons.Filled.PhotoCamera,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.take_photo))
+                }
                 OutlinedButton(onClick = {
                     filePicker.launch(arrayOf("*/*"))
                 }) { Text(stringResource(R.string.add_files)) }
@@ -246,7 +298,7 @@ fun EditorScreen(
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = vm::save,
-                enabled = !state.busy,
+                enabled = !state.busy && !state.saved,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(if (state.busy) stringResource(R.string.saving) else stringResource(R.string.save))

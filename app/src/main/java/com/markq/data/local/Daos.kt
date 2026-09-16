@@ -54,6 +54,24 @@ interface AttachmentDao {
 }
 
 @Dao
+interface TemplateDao {
+    @Query("SELECT * FROM templates WHERE deleted = 0 ORDER BY contentUpdatedAt DESC")
+    fun observeActive(): Flow<List<TemplateEntity>>
+
+    @Query("SELECT * FROM templates WHERE id = :id")
+    suspend fun get(id: String): TemplateEntity?
+
+    @Query("SELECT * FROM templates WHERE dirty = 1")
+    suspend fun getDirty(): List<TemplateEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(template: TemplateEntity)
+
+    @Query("UPDATE templates SET dirty = :dirty, remoteEtag = :etag WHERE id = :id")
+    suspend fun markPushed(id: String, dirty: Boolean, etag: String?)
+}
+
+@Dao
 interface CursorDao {
     @Query("SELECT * FROM sync_cursors WHERE path = :path")
     suspend fun get(path: String): SyncCursorEntity?
