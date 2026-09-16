@@ -14,6 +14,7 @@ private val Context.settingsDataStore by preferencesDataStore("markq_settings")
 data class AppSettings(
     val nickname: String = "",
     val webdavUrl: String = "",
+    val remoteDir: String = "",
     val username: String = "",
     val password: String = "",
     val lastSyncEpochMs: Long = 0L,
@@ -21,6 +22,7 @@ data class AppSettings(
     val hasNickname: Boolean get() = nickname.isNotBlank()
     val hasServer: Boolean get() = webdavUrl.isNotBlank()
     val isConfigured: Boolean get() = hasNickname && hasServer
+    val collectionUrl: String get() = com.markq.core.NutstoreDav.collectionUrl(webdavUrl, remoteDir)
 }
 
 class SettingsStore(context: Context) {
@@ -30,6 +32,7 @@ class SettingsStore(context: Context) {
         AppSettings(
             nickname = prefs[NICKNAME].orEmpty(),
             webdavUrl = prefs[URL].orEmpty(),
+            remoteDir = prefs[REMOTE_DIR].orEmpty(),
             username = prefs[USERNAME].orEmpty(),
             password = prefs[PASSWORD].orEmpty(),
             lastSyncEpochMs = prefs[LAST_SYNC] ?: 0L,
@@ -43,12 +46,14 @@ class SettingsStore(context: Context) {
         url: String,
         username: String,
         password: String,
+        remoteDir: String,
     ) {
         val nick = nickname.trim()
         require(nick.isNotEmpty()) { "nickname" }
         dataStore.edit { prefs ->
             prefs[NICKNAME] = nick
             prefs[URL] = url.trim()
+            prefs[REMOTE_DIR] = remoteDir.trim().trim('/')
             prefs[USERNAME] = username.trim()
             prefs[PASSWORD] = password
         }
@@ -67,6 +72,7 @@ class SettingsStore(context: Context) {
     private companion object {
         val NICKNAME = stringPreferencesKey("nickname")
         val URL = stringPreferencesKey("webdav_url")
+        val REMOTE_DIR = stringPreferencesKey("webdav_remote_dir")
         val USERNAME = stringPreferencesKey("webdav_username")
         val PASSWORD = stringPreferencesKey("webdav_password")
         val LAST_SYNC = longPreferencesKey("last_sync")

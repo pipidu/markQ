@@ -12,10 +12,12 @@ data class SharePayload(
     val u: String,
     val l: String = "",
     val p: String = "",
+    val d: String = "",
 ) {
     val url: String get() = u
     val username: String get() = l
     val password: String get() = p
+    val remoteDir: String get() = d
 }
 
 object ShareCode {
@@ -23,11 +25,17 @@ object ShareCode {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 
-    fun encode(url: String, username: String = "", password: String = ""): String {
+    fun encode(
+        url: String,
+        username: String = "",
+        password: String = "",
+        remoteDir: String = "",
+    ): String {
         val payload = SharePayload(
             u = url.trim(),
             l = username,
             p = password,
+            d = remoteDir.trim().trim('/'),
         )
         val deflated = deflate(json.encodeToString(SharePayload.serializer(), payload).toByteArray(Charsets.UTF_8))
         return PREFIX + base64UrlEncode(deflated)

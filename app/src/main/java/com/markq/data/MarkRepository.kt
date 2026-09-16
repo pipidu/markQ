@@ -37,10 +37,21 @@ class MarkRepository(
 
     suspend fun getEntry(id: String): EntryWithAttachments? = db.entries().get(id)
 
-    suspend fun saveServer(nickname: String, url: String, username: String, password: String) {
+    suspend fun saveServer(
+        nickname: String,
+        url: String,
+        username: String,
+        password: String,
+        remoteDir: String,
+    ) {
         requireNickname(nickname)
-        sync.testConnection(WebDavConfig(url.trim(), username, password))
-        settings.saveServer(nickname, url, username, password)
+        val config = WebDavConfig(
+            baseUrl = com.markq.core.NutstoreDav.collectionUrl(url, remoteDir),
+            username = username,
+            password = password,
+        )
+        sync.testConnection(config)
+        settings.saveServer(nickname, url, username, password, remoteDir)
         sync.sync()
     }
 

@@ -48,7 +48,7 @@ class SyncEngine(
     suspend fun sync(): Result<Unit> = mutex.withLock {
         val cfg = settings.current()
         if (!cfg.isConfigured) return Result.success(Unit)
-        val config = WebDavConfig(cfg.webdavUrl, cfg.username, cfg.password)
+        val config = WebDavConfig(cfg.collectionUrl, cfg.username, cfg.password)
         _state.value = _state.value.copy(running = true, error = null)
         try {
             withContext(Dispatchers.IO) {

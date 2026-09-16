@@ -46,9 +46,18 @@ class WebDavClient(
     }
 
     fun ensureLayout(config: WebDavConfig) {
-        mkcolIfNeeded(config, join(config.baseUrl))
+        ensurePath(config, join(config.baseUrl))
         mkcolIfNeeded(config, entriesUrl(config))
         mkcolIfNeeded(config, filesUrl(config))
+    }
+
+    fun ensurePath(config: WebDavConfig, target: HttpUrl) {
+        val origin = target.newBuilder().encodedPath("/").query(null).fragment(null).build()
+        var current = origin
+        for (segment in target.pathSegments.filter { it.isNotEmpty() }) {
+            current = current.newBuilder().addPathSegment(segment).build()
+            mkcolIfNeeded(config, current)
+        }
     }
 
     fun mkcolIfNeeded(config: WebDavConfig, url: HttpUrl) {

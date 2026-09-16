@@ -42,6 +42,13 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.nutstore_label), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.nutstore_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(24.dp))
         OutlinedTextField(
             value = state.nickname,
@@ -73,6 +80,14 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             onValueChange = vm::setUrl,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.webdav_url)) },
+            singleLine = true,
+        )
+        OutlinedTextField(
+            value = state.remoteDir,
+            onValueChange = vm::setRemoteDir,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.remote_dir)) },
+            supportingText = { Text(stringResource(R.string.remote_dir_hint)) },
             singleLine = true,
         )
         OutlinedTextField(

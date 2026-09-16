@@ -71,6 +71,14 @@ fun SettingsScreen(
                 isError = form.nicknameError,
                 singleLine = true,
             )
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.nutstore_label), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.nutstore_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = form.url,
                 onValueChange = vm::setUrl,
@@ -79,17 +87,25 @@ fun SettingsScreen(
                 singleLine = true,
             )
             OutlinedTextField(
+                value = form.remoteDir,
+                onValueChange = vm::setRemoteDir,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.remote_dir)) },
+                supportingText = { Text(stringResource(R.string.remote_dir_hint)) },
+                singleLine = true,
+            )
+            OutlinedTextField(
                 value = form.username,
                 onValueChange = vm::setUsername,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.username)) },
+                label = { Text(stringResource(R.string.username_optional)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = form.password,
                 onValueChange = vm::setPassword,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.password)) },
+                label = { Text(stringResource(R.string.password_optional)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
             )

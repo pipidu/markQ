@@ -4,7 +4,7 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 
 ## Product
 
-- The user sets a WebDAV server URL and credentials as the sync server.
+- The user sets a WebDAV server URL and credentials as the sync server. Default is Nutstore (坚果云) at `https://dav.jianguoyun.com/dav/`, plus a save directory (default `MarkQ`).
 - Users add mark entries. Content supports text, images, and files. Each entry has a date/time, defaulting to now.
 - Swipe right marks an item complete. Swipe left deletes. Delete requires a second confirmation.
 - Completed items show strikethrough and/or a gray filter.
@@ -47,12 +47,12 @@ In-app update source: `https://api.github.com/repos/pipidu/markQ/releases/latest
 
 ## Sync format (WebDAV)
 
-The URL the user enters is the collection root. The app creates two child collections if missing:
+The WebDAV **server** defaults to Nutstore (坚果云): `https://dav.jianguoyun.com/dav/`. The user also sets a **save directory** on that server (default `MarkQ`). Collection root is `{server}/{remoteDir}/`:
 
 ```
-{root}/
-  entries/{entryId}.json     # one JSON document per mark
-  files/{entryId}/{attachId} # attachment bytes
+{server}/{remoteDir}/
+  entries/{entryId}.json
+  files/{entryId}/{attachId}
 ```
 
 Entry JSON (`schemaVersion` 1):
@@ -112,10 +112,11 @@ Deletes are **tombstones** (`deleted: true`) so other clients see the removal. D
 Format: `MQ1_` + base64url (no padding) of raw DEFLATE bytes of UTF-8 JSON:
 
 ```json
-{"u":"https://example.com/webdav/markq","l":"username","p":"password"}
+{"u":"https://dav.jianguoyun.com/dav/","d":"MarkQ","l":"username","p":"password"}
 ```
 
-- `u` (required): WebDAV collection URL
+- `u` (required): WebDAV server URL (Nutstore default `https://dav.jianguoyun.com/dav/`)
+- `d` (optional): save directory on that server (default `MarkQ` for new setups)
 - `l` / `p` (optional): username and password if needed to join
 - Recipients paste the code; the app fills server fields. Nickname is still required locally and is not in the code.
 

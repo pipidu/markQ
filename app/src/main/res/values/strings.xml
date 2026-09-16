@@ -1,14 +1,18 @@
 <resources>
     <string name="app_name">MarkQ</string>
-    <string name="setup_subtitle">在你自己的 WebDAV 服务器上做团队标记。</string>
+    <string name="setup_subtitle">默认使用坚果云 WebDAV，和队友一起做标记。</string>
+    <string name="nutstore_label">坚果云 WebDAV</string>
+    <string name="nutstore_hint">已填入坚果云地址 https://dav.jianguoyun.com/dav/ 。账号用坚果云邮箱，密码用应用密码。</string>
+    <string name="webdav_url">坚果云 WebDAV 地址</string>
+    <string name="remote_dir">保存目录</string>
+    <string name="remote_dir_hint">标记保存在该文件夹下（默认 MarkQ）。可改成坚果云里的其他目录。</string>
+    <string name="username_optional">坚果云账号（邮箱）</string>
+    <string name="password_optional">坚果云应用密码</string>
     <string name="nickname">昵称</string>
     <string name="nickname_required_hint">必填。每个人都要设置昵称，包括第一个配置 WebDAV 的人，方便区分是谁在标记。</string>
     <string name="share_code_optional">分享码（选填）</string>
     <string name="share_code_hint">粘贴队友的分享码可自动填入服务器信息。昵称仍需自己填写。</string>
     <string name="apply_share_code">应用分享码</string>
-    <string name="webdav_url">WebDAV 地址</string>
-    <string name="username_optional">用户名（如需要）</string>
-    <string name="password_optional">密码（如需要）</string>
     <string name="username">用户名</string>
     <string name="password">密码</string>
     <string name="save_and_connect">保存并连接</string>

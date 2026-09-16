@@ -59,14 +59,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(update.error) {
-                    val msg = update.error
-                    if (msg != null && !update.readyToInstall && !update.downloading && !update.checking) {
-                        snackbar.showSnackbar(msg)
-                        main.consumeUpdateMessage()
-                    }
-                }
-
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { SnackbarHost(snackbar) },
@@ -92,33 +84,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (update.downloading || update.readyToInstall) {
+                if (update.readyToInstall) {
                     val version = update.info?.version.orEmpty()
                     AlertDialog(
-                        onDismissRequest = {
-                            if (!update.downloading) main.dismissUpdate()
-                        },
+                        onDismissRequest = { main.dismissUpdate() },
                         title = { Text(stringResource(R.string.update_available_title)) },
-                        text = {
-                            Text(
-                                if (update.downloading || version.isBlank()) {
-                                    stringResource(R.string.downloading_update)
-                                } else {
-                                    stringResource(R.string.update_available_body, version)
-                                },
-                            )
-                        },
+                        text = { Text(stringResource(R.string.update_available_body, version)) },
                         confirmButton = {
-                            TextButton(
-                                onClick = { main.installUpdate(context) },
-                                enabled = update.readyToInstall,
-                            ) { Text(stringResource(R.string.update_install)) }
+                            TextButton(onClick = { main.installUpdate(context) }) {
+                                Text(stringResource(R.string.update_install))
+                            }
                         },
                         dismissButton = {
-                            TextButton(
-                                onClick = { main.dismissUpdate() },
-                                enabled = !update.downloading,
-                            ) { Text(stringResource(R.string.update_later)) }
+                            TextButton(onClick = { main.dismissUpdate() }) {
+                                Text(stringResource(R.string.update_later))
+                            }
                         },
                     )
                 }

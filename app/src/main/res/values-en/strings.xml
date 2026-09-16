@@ -1,14 +1,18 @@
 <resources>
     <string name="app_name">MarkQ</string>
-    <string name="setup_subtitle">Team marking on your own WebDAV server.</string>
+    <string name="setup_subtitle">Team marking on Nutstore (坚果云) WebDAV by default.</string>
+    <string name="nutstore_label">Nutstore WebDAV</string>
+    <string name="nutstore_hint">Default server is https://dav.jianguoyun.com/dav/. Use your Nutstore email and app password.</string>
+    <string name="webdav_url">Nutstore WebDAV URL</string>
+    <string name="remote_dir">Save folder</string>
+    <string name="remote_dir_hint">Marks are stored in this folder (default MarkQ). You can change it to another folder on the server.</string>
+    <string name="username_optional">Nutstore account (email)</string>
+    <string name="password_optional">Nutstore app password</string>
     <string name="nickname">Nickname</string>
     <string name="nickname_required_hint">Required. Everyone needs a nickname, including the first person who sets up WebDAV, so markers are distinguishable.</string>
     <string name="share_code_optional">Share code (optional)</string>
     <string name="share_code_hint">Paste a teammate’s code to fill the server fields. You still need your own nickname.</string>
     <string name="apply_share_code">Apply share code</string>
-    <string name="webdav_url">WebDAV URL</string>
-    <string name="username_optional">Username (if needed)</string>
-    <string name="password_optional">Password (if needed)</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
     <string name="save_and_connect">Save and connect</string>

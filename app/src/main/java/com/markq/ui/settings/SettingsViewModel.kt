@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.R
+import com.markq.core.NutstoreDav
 import com.markq.core.ShareCode
 import com.markq.data.MarkRepository
 import com.markq.data.UpdateInfo
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
 
 data class SettingsForm(
     val nickname: String = "",
-    val url: String = "",
+    val url: String = NutstoreDav.DEFAULT_SERVER,
+    val remoteDir: String = NutstoreDav.DEFAULT_DIR,
     val username: String = "",
     val password: String = "",
     val shareCode: String = "",
@@ -50,13 +52,20 @@ class SettingsViewModel(
             repo.settingsFlow.collect { cfg ->
                 if (!hydrated) {
                     hydrated = true
+                    val url = cfg.webdavUrl.ifBlank { NutstoreDav.DEFAULT_SERVER }
+                    val dir = if (cfg.webdavUrl.isBlank()) {
+                        cfg.remoteDir.ifBlank { NutstoreDav.DEFAULT_DIR }
+                    } else {
+                        cfg.remoteDir
+                    }
                     _form.update {
                         it.copy(
                             nickname = cfg.nickname,
-                            url = cfg.webdavUrl,
+                            url = url,
+                            remoteDir = dir,
                             username = cfg.username,
                             password = cfg.password,
-                            shareCode = ShareCode.encode(cfg.webdavUrl, cfg.username, cfg.password),
+                            shareCode = ShareCode.encode(url, cfg.username, cfg.password, dir),
                         )
                     }
                 }
@@ -66,10 +75,11 @@ class SettingsViewModel(
             updates.state.collect { st ->
                 _form.update {
                     it.copy(
-                        checkingUpdate = st.checking || st.downloading,
+                        checkingUpdate = st.userInitiated && (st.checking || st.downloading),
                         update = st.info,
                         message = when {
-                            st.downloading -> app.getString(R.string.downloading_update)
+                            !st.userInitiated -> it.message
+                            st.checking || st.downloading -> app.getString(R.string.checking_updates)
                             st.info != null -> app.getString(R.string.update_ready, st.info.version)
                             else -> st.error ?: it.message
                         },
@@ -80,9 +90,18 @@ class SettingsViewModel(
     }
 
     fun setNickname(value: String) = _form.update { it.copy(nickname = value, nicknameError = false) }
-    fun setUrl(value: String) = _form.update { it.copy(url = value, shareCode = ShareCode.encode(value, it.username, it.password)) }
-    fun setUsername(value: String) = _form.update { it.copy(username = value, shareCode = ShareCode.encode(it.url, value, it.password)) }
-    fun setPassword(value: String) = _form.update { it.copy(password = value, shareCode = ShareCode.encode(it.url, it.username, value)) }
+    fun setUrl(value: String) = _form.update {
+        it.copy(url = value, shareCode = ShareCode.encode(value, it.username, it.password, it.remoteDir))
+    }
+    fun setRemoteDir(value: String) = _form.update {
+        it.copy(remoteDir = value, shareCode = ShareCode.encode(it.url, it.username, it.password, value))
+    }
+    fun setUsername(value: String) = _form.update {
+        it.copy(username = value, shareCode = ShareCode.encode(it.url, value, it.password, it.remoteDir))
+    }
+    fun setPassword(value: String) = _form.update {
+        it.copy(password = value, shareCode = ShareCode.encode(it.url, it.username, value, it.remoteDir))
+    }
 
     fun save() {
         val f = _form.value
@@ -95,20 +114,20 @@ class SettingsViewModel(
             }
             return
         }
-        if (f.url.isBlank()) {
-            _form.update { it.copy(message = app.getString(R.string.error_nickname_and_url)) }
-            return
-        }
+        val url = f.url.trim().ifBlank { NutstoreDav.DEFAULT_SERVER }
+        val dir = f.remoteDir.trim()
         viewModelScope.launch {
             _form.update { it.copy(busy = true, message = null, nicknameError = false) }
             runCatching {
-                repo.saveServer(f.nickname, f.url, f.username, f.password)
+                repo.saveServer(f.nickname, url, f.username, f.password, dir)
             }.onSuccess {
                 _form.update {
                     it.copy(
                         busy = false,
+                        url = url,
+                        remoteDir = dir,
                         message = app.getString(R.string.saved),
-                        shareCode = ShareCode.encode(f.url, f.username, f.password),
+                        shareCode = ShareCode.encode(url, f.username, f.password, dir),
                     )
                 }
             }.onFailure { err ->

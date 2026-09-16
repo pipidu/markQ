@@ -26,9 +26,41 @@ class ShareCodeTest {
         assertEquals("s3cret", payload.password)
     }
 
+    @Test
+    fun roundTripWithDirectory() {
+        val code = ShareCode.encode(
+            url = "https://dav.jianguoyun.com/dav/",
+            username = "a@b.com",
+            password = "app-pass",
+            remoteDir = "MarkQ",
+        )
+        val payload = ShareCode.decode(code)
+        assertEquals("https://dav.jianguoyun.com/dav/", payload.url)
+        assertEquals("MarkQ", payload.remoteDir)
+        assertEquals("a@b.com", payload.username)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnknownPrefix() {
         ShareCode.decode("ABC_not-a-code")
+    }
+}
+
+class NutstoreDavTest {
+    @Test
+    fun joinsDefaultFolder() {
+        assertEquals(
+            "https://dav.jianguoyun.com/dav/MarkQ/",
+            NutstoreDav.collectionUrl(NutstoreDav.DEFAULT_SERVER, NutstoreDav.DEFAULT_DIR),
+        )
+    }
+
+    @Test
+    fun emptyDirKeepsServerRoot() {
+        assertEquals(
+            "https://dav.jianguoyun.com/dav/",
+            NutstoreDav.collectionUrl(NutstoreDav.DEFAULT_SERVER, ""),
+        )
     }
 }
 

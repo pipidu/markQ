@@ -47,6 +47,7 @@ data class UpdateUiState(
     val downloading: Boolean = false,
     val info: UpdateInfo? = null,
     val error: String? = null,
+    val userInitiated: Boolean = false,
 ) {
     val readyToInstall: Boolean get() = info?.apk?.exists() == true
 }
@@ -142,15 +143,17 @@ class UpdateManager(
     }
 
     suspend fun checkAndDownload(userInitiated: Boolean = false): UpdateInfo? = mutex.withLock {
-        _state.update { it.copy(checking = true, downloading = false, error = null) }
+        _state.update {
+            it.copy(checking = true, downloading = false, error = null, userInitiated = userInitiated)
+        }
         return try {
-            _state.update { it.copy(checking = false, downloading = true) }
             val info = checker.checkAndDownload()
             _state.update {
                 it.copy(
                     checking = false,
                     downloading = false,
                     info = info,
+                    userInitiated = userInitiated,
                     error = if (userInitiated && info == null) {
                         app.getString(R.string.already_latest, BuildConfig.VERSION_NAME)
                     } else {
@@ -164,7 +167,12 @@ class UpdateManager(
                 it.copy(
                     checking = false,
                     downloading = false,
-                    error = e.message ?: app.getString(R.string.error_update_failed),
+                    userInitiated = userInitiated,
+                    error = if (userInitiated) {
+                        e.message ?: app.getString(R.string.error_update_failed)
+                    } else {
+                        null
+                    },
                 )
             }
             null

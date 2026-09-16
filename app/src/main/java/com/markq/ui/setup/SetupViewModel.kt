@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.R
+import com.markq.core.NutstoreDav
 import com.markq.core.ShareCode
 import com.markq.data.MarkRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,8 @@ import kotlinx.coroutines.launch
 data class SetupUiState(
     val nickname: String = "",
     val shareCode: String = "",
-    val url: String = "",
+    val url: String = NutstoreDav.DEFAULT_SERVER,
+    val remoteDir: String = NutstoreDav.DEFAULT_DIR,
     val username: String = "",
     val password: String = "",
     val busy: Boolean = false,
@@ -36,7 +38,12 @@ class SetupViewModel(
             _state.update {
                 it.copy(
                     nickname = cfg.nickname,
-                    url = cfg.webdavUrl,
+                    url = cfg.webdavUrl.ifBlank { NutstoreDav.DEFAULT_SERVER },
+                    remoteDir = if (cfg.webdavUrl.isBlank()) {
+                        cfg.remoteDir.ifBlank { NutstoreDav.DEFAULT_DIR }
+                    } else {
+                        cfg.remoteDir
+                    },
                     username = cfg.username,
                     password = cfg.password,
                 )
@@ -49,6 +56,7 @@ class SetupViewModel(
     }
     fun setShareCode(value: String) = _state.update { it.copy(shareCode = value, error = null) }
     fun setUrl(value: String) = _state.update { it.copy(url = value, error = null) }
+    fun setRemoteDir(value: String) = _state.update { it.copy(remoteDir = value, error = null) }
     fun setUsername(value: String) = _state.update { it.copy(username = value, error = null) }
     fun setPassword(value: String) = _state.update { it.copy(password = value, error = null) }
 
@@ -60,6 +68,7 @@ class SetupViewModel(
                 _state.update {
                     it.copy(
                         url = payload.url,
+                        remoteDir = payload.remoteDir,
                         username = payload.username,
                         password = payload.password,
                         error = null,
@@ -94,20 +103,17 @@ class SetupViewModel(
             }
             return
         }
-        val url = _state.value.url.trim()
-        if (url.isBlank()) {
-            _state.update { it.copy(error = app.getString(R.string.error_url_or_share_required)) }
-            return
-        }
+        val url = _state.value.url.trim().ifBlank { NutstoreDav.DEFAULT_SERVER }
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             _state.update { it.copy(error = app.getString(R.string.error_url_scheme)) }
             return
         }
+        val remoteDir = _state.value.remoteDir.trim()
         viewModelScope.launch {
-            _state.update { it.copy(busy = true, error = null, nicknameError = false) }
+            _state.update { it.copy(busy = true, error = null, nicknameError = false, url = url, remoteDir = remoteDir) }
             val latest = _state.value
             runCatching {
-                repo.saveServer(latest.nickname, latest.url, latest.username, latest.password)
+                repo.saveServer(latest.nickname, latest.url, latest.username, latest.password, latest.remoteDir)
             }.onFailure { err ->
                 _state.update {
                     it.copy(
