@@ -93,10 +93,28 @@ class SyncEngine(
     private suspend fun pullAttachments(config: WebDavConfig, remote: MarkEntry) {
         dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", remote.id))
         for (att in remote.attachments) {
-            val local = files.file(remote.id, att.id)
+            val local = files.locate(remote.id, att.id, att.sha256)
             val existing = attachments.forEntry(remote.id).firstOrNull { it.id == att.id }
-            val hashOk = local.exists() && existing?.sha256 == att.sha256 && att.sha256.isNotBlank()
-            if (hashOk) continue
+            val hashOk = local.exists() && (existing?.sha256 == att.sha256 || files.blob(att.sha256).exists()) && att.sha256.isNotBlank()
+            if (hashOk) {
+                if (existing == null || existing.localPath != local.absolutePath || existing.sha256 != att.sha256) {
+                    attachments.upsert(
+                        AttachmentEntity(
+                            id = att.id,
+                            entryId = remote.id,
+                            name = att.name,
+                            mime = att.mime,
+                            kind = att.kind,
+                            size = att.size,
+                            sha256 = att.sha256,
+                            localPath = local.absolutePath,
+                            dirty = false,
+                            remoteEtag = existing?.remoteEtag,
+                        ),
+                    )
+                }
+                continue
+            }
             val url = dav.attachmentUrl(config, remote.id, att.id)
             val got = try {
                 dav.get(config, url)
@@ -147,7 +165,8 @@ class SyncEngine(
                         kind = att.kind,
                         size = att.size,
                         sha256 = att.sha256,
-                        localPath = existing?.localPath ?: files.file(merged.id, att.id).takeIf { it.exists() }?.absolutePath,
+                        localPath = existing?.localPath
+                            ?: files.locate(merged.id, att.id, att.sha256).takeIf { it.exists() }?.absolutePath,
                         dirty = existing?.dirty == true,
                         remoteEtag = existing?.remoteEtag,
                     ),
@@ -184,7 +203,7 @@ class SyncEngine(
         dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", row.entry.id))
         for (att in row.attachments.filter { it.dirty }) {
             try {
-                val bytes = files.readBytes(row.entry.id, att.id) ?: continue
+                val bytes = files.readBytes(row.entry.id, att.id, att.sha256) ?: continue
                 val url = dav.attachmentUrl(config, row.entry.id, att.id)
                 val etag = putWithRetry(config, url, bytes, att.mime.ifBlank { "application/octet-stream" }, att.remoteEtag) {
                     bytes to null

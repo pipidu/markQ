@@ -32,6 +32,7 @@ data class RemoteEntry(
     val deleted: Boolean = false,
     val deletedBy: String? = null,
     val deletedAt: String? = null,
+    val color: String? = null,
     val attachments: List<RemoteAttachment> = emptyList(),
 ) {
     fun toModel(): MarkEntry = MarkEntry(
@@ -49,6 +50,7 @@ data class RemoteEntry(
         deleted = deleted,
         deletedBy = deletedBy,
         deletedAt = IsoTime.parse(deletedAt),
+        color = color,
         attachments = attachments.map {
             MarkAttachment(
                 id = it.id,
@@ -77,6 +79,7 @@ data class RemoteEntry(
             deleted = entry.deleted,
             deletedBy = entry.deletedBy,
             deletedAt = entry.deletedAt?.let(IsoTime::format),
+            color = entry.color,
             attachments = entry.attachments.map {
                 RemoteAttachment(
                     id = it.id,

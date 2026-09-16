@@ -34,6 +34,8 @@
     <string name="complete">Complete</string>
     <string name="uncomplete">Mark as not done</string>
     <string name="new_mark">New mark</string>
+    <string name="edit_mark">Mark details</string>
+    <string name="color_label">Color</string>
     <string name="text">Text</string>
     <string name="date_and_time">Date and time</string>
     <string name="change_date">Change date</string>
@@ -55,6 +57,7 @@
     <string name="update_available_body">MarkQ %1$s has been downloaded in the app. Install it now?</string>
     <string name="update_available_downloading">Downloading MarkQ %1$s…</string>
     <string name="update_download_percent">Downloaded %1$d%%</string>
+    <string name="update_download_progress">Downloaded %1$d%% · %2$s</string>
     <string name="allow_unknown_sources">Allow MarkQ to install unknown apps, then return to continue.</string>
     <string name="update_install">Install</string>
     <string name="update_later">Later</string>

@@ -155,7 +155,13 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.update_download_percent, form.downloadPercent))
+                    Text(
+                        stringResource(
+                            R.string.update_download_progress,
+                            form.downloadPercent,
+                            com.markq.core.ByteFormat.speed(form.downloadBytesPerSec),
+                        ),
+                    )
                 }
             }
             val update = form.update

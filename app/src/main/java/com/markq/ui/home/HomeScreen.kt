@@ -2,17 +2,21 @@ package com.markq.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,14 +45,18 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -60,10 +68,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
+import com.markq.core.MarkColor
 import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
-import com.markq.ui.appViewModel
 import com.markq.ui.CompactTopAppBar
+import com.markq.ui.appViewModel
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -75,6 +84,7 @@ import kotlin.math.abs
 @Composable
 fun HomeScreen(
     onAdd: () -> Unit,
+    onOpen: (String) -> Unit,
     onSettings: () -> Unit,
     vm: HomeViewModel = appViewModel(),
 ) {
@@ -127,13 +137,14 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(entries, key = { it.entry.id }) { row ->
                     SwipeMarkRow(
                         row = row,
                         onToggleComplete = { vm.complete(row.entry.id) },
                         onDeleteRequest = { pendingDelete = row.entry.id },
+                        onOpen = { onOpen(row.entry.id) },
                     )
                 }
             }
@@ -165,6 +176,7 @@ private fun SwipeMarkRow(
     row: EntryWithAttachments,
     onToggleComplete: () -> Unit,
     onDeleteRequest: () -> Unit,
+    onOpen: () -> Unit,
 ) {
     val density = LocalDensity.current
     val minDismissPx = with(density) { 160.dp.toPx() }
@@ -174,80 +186,96 @@ private fun SwipeMarkRow(
             maxOf(distance * 0.55f, minDismissPx).coerceAtMost(distance * 0.8f)
         },
         confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.Settled) return@rememberSwipeToDismissBoxState true
             val travelled = abs(stateHolder[0]?.requireOffset() ?: 0f)
-            if (value != SwipeToDismissBoxValue.Settled && travelled < minDismissPx) {
-                return@rememberSwipeToDismissBoxState false
-            }
-            when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onToggleComplete()
-                    false
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    onDeleteRequest()
-                    false
-                }
-                else -> false
-            }
+            travelled >= minDismissPx
         },
     )
     stateHolder[0] = state
+    LaunchedEffect(state.currentValue, row.entry.id) {
+        when (state.currentValue) {
+            SwipeToDismissBoxValue.StartToEnd -> {
+                onToggleComplete()
+                state.snapTo(SwipeToDismissBoxValue.Settled)
+            }
+            SwipeToDismissBoxValue.EndToStart -> {
+                onDeleteRequest()
+                state.snapTo(SwipeToDismissBoxValue.Settled)
+            }
+            else -> Unit
+        }
+    }
     val completed = row.entry.completed
+    var rowWidth by remember { mutableFloatStateOf(1f) }
     SwipeToDismissBox(
         state = state,
+        modifier = Modifier.onSizeChanged { rowWidth = it.width.toFloat().coerceAtLeast(1f) },
         backgroundContent = {
-            val target = state.targetValue
+            val offset = runCatching { state.requireOffset() }.getOrDefault(0f)
+            val fraction = (offset / rowWidth).coerceIn(-1f, 1f)
+            val revealingComplete = fraction > 0.02f
+            val revealingDelete = fraction < -0.02f
             val color by animateColorAsState(
-                when (target) {
-                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFF0B6E4F)
-                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFB42318)
+                when {
+                    revealingComplete -> Color(0xFF0B6E4F)
+                    revealingDelete -> Color(0xFFB42318)
                     else -> Color.Transparent
                 },
                 label = "swipe-bg",
             )
-            val align = when (target) {
-                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+            val align = when {
+                revealingComplete -> Alignment.CenterStart
+                revealingDelete -> Alignment.CenterEnd
                 else -> Alignment.Center
             }
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(color, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(color)
                     .padding(horizontal = 20.dp),
                 contentAlignment = align,
             ) {
-                when (target) {
-                    SwipeToDismissBoxValue.StartToEnd -> if (completed) {
+                if (abs(fraction) > 0.12f) {
+                    if (revealingComplete) {
+                        if (completed) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Undo,
+                                contentDescription = stringResource(R.string.uncomplete),
+                                tint = Color.White,
+                            )
+                        } else {
+                            Icon(
+                                painterResource(R.drawable.ic_check),
+                                contentDescription = stringResource(R.string.complete),
+                                tint = Color.White,
+                            )
+                        }
+                    } else if (revealingDelete) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = stringResource(R.string.uncomplete),
-                            tint = Color.White,
-                        )
-                    } else {
-                        Icon(
-                            painterResource(R.drawable.ic_check),
-                            contentDescription = stringResource(R.string.complete),
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete),
                             tint = Color.White,
                         )
                     }
-                    SwipeToDismissBoxValue.EndToStart -> Icon(
-                        Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.delete),
-                        tint = Color.White,
-                    )
-                    else -> Unit
                 }
             }
         },
     ) {
-        MarkCard(row = row)
+        MarkCard(row = row, onOpen = onOpen)
     }
 }
 
 @Composable
-private fun MarkCard(row: EntryWithAttachments) {
+private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
     val completed = row.entry.completed
+    val accent = MarkColor.parseArgb(row.entry.color)?.let { Color(it.toInt()) }
+    val surface = MaterialTheme.colorScheme.surface
+    val container = if (accent != null) {
+        accent.copy(alpha = if (completed) 0.12f else 0.22f).compositeOver(surface)
+    } else {
+        surface
+    }
     val textStyle: TextStyle = if (completed) {
         MaterialTheme.typography.bodyLarge.copy(
             textDecoration = TextDecoration.LineThrough,
@@ -257,72 +285,77 @@ private fun MarkCard(row: EntryWithAttachments) {
         MaterialTheme.typography.bodyLarge
     }
     Card(
+        onClick = onOpen,
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (completed) 0.55f else 1f),
-        colors = CardDefaults.cardColors(
-            containerColor = if (completed) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
+            .alpha(if (completed) 0.72f else 1f)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = container),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         shape = RoundedCornerShape(16.dp),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                if (completed) {
-                    Icon(
-                        painterResource(R.drawable.ic_check),
-                        contentDescription = stringResource(R.string.complete),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(end = 8.dp, top = 2.dp)
-                            .size(18.dp),
-                    )
-                }
-                Text(
-                    text = row.entry.text.ifBlank { stringResource(R.string.no_text) },
-                    style = textStyle,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                formatWhen(row.entry.occurredAt),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            Box(
+                Modifier
+                    .width(8.dp)
+                    .fillMaxHeight()
+                    .background(accent ?: MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
             )
-            Text(
-                attributionText(row),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            val images = row.attachments.filter { it.kind == "image" && !it.localPath.isNullOrBlank() }
-            val files = row.attachments.filter { it.kind != "image" }
-            if (images.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    images.take(3).forEach { att ->
-                        AsyncImage(
-                            model = File(att.localPath!!),
-                            contentDescription = att.name,
-                            modifier = Modifier.size(64.dp),
-                            contentScale = ContentScale.Crop,
+            Column(Modifier.padding(16.dp).weight(1f)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    if (completed) {
+                        Icon(
+                            painterResource(R.drawable.ic_check),
+                            contentDescription = stringResource(R.string.complete),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(end = 8.dp, top = 2.dp)
+                                .size(18.dp),
                         )
                     }
+                    Text(
+                        text = row.entry.text.ifBlank { stringResource(R.string.no_text) },
+                        style = textStyle,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-            }
-            if (files.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    files.joinToString { it.name },
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    formatWhen(row.entry.occurredAt),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    attributionText(row),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val images = row.attachments.filter { it.kind == "image" && !it.localPath.isNullOrBlank() }
+                val files = row.attachments.filter { it.kind != "image" }
+                if (images.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        images.take(3).forEach { att ->
+                            AsyncImage(
+                                model = File(att.localPath!!),
+                                contentDescription = att.name,
+                                modifier = Modifier.size(64.dp),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                    }
+                }
+                if (files.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        files.joinToString { it.name },
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

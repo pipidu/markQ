@@ -48,6 +48,7 @@ data class UpdateUiState(
     val downloadBytes: Long = 0L,
     val downloadTotal: Long = 0L,
     val downloadVersion: String? = null,
+    val downloadBytesPerSec: Long = 0L,
     val info: UpdateInfo? = null,
     val error: String? = null,
     val userInitiated: Boolean = false,
@@ -179,6 +180,7 @@ class UpdateManager(
                 downloading = false,
                 downloadBytes = 0L,
                 downloadTotal = 0L,
+                downloadBytesPerSec = 0L,
                 downloadVersion = null,
                 error = null,
                 userInitiated = userInitiated,
@@ -186,8 +188,11 @@ class UpdateManager(
             )
         }
         return try {
+            var startedAt = android.os.SystemClock.elapsedRealtime()
+            var lastUi = 0L
             val info = checker.checkAndDownload(
                 onNewerVersion = { version ->
+                    startedAt = android.os.SystemClock.elapsedRealtime()
                     _state.update {
                         it.copy(
                             checking = false,
@@ -195,18 +200,26 @@ class UpdateManager(
                             downloadVersion = version,
                             downloadBytes = 0L,
                             downloadTotal = 0L,
+                            downloadBytesPerSec = 0L,
                             userInitiated = userInitiated,
                         )
                     }
                 },
                 onProgress = { bytes, total ->
-                    _state.update {
-                        it.copy(
-                            checking = false,
-                            downloading = true,
-                            downloadBytes = bytes,
-                            downloadTotal = total,
-                        )
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val elapsed = (now - startedAt).coerceAtLeast(1L)
+                    val speed = (bytes * 1000L) / elapsed
+                    if (now - lastUi >= 80L || bytes == total) {
+                        lastUi = now
+                        _state.update {
+                            it.copy(
+                                checking = false,
+                                downloading = true,
+                                downloadBytes = bytes,
+                                downloadTotal = total,
+                                downloadBytesPerSec = speed,
+                            )
+                        }
                     }
                 },
             )

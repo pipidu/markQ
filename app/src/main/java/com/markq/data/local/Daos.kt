@@ -37,6 +37,9 @@ interface AttachmentDao {
     @Query("SELECT * FROM attachments WHERE entryId = :entryId")
     suspend fun forEntry(entryId: String): List<AttachmentEntity>
 
+    @Query("SELECT sha256 FROM attachments")
+    suspend fun allHashes(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(attachment: AttachmentEntity)
 

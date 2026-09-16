@@ -6,9 +6,12 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 
 - The user sets a WebDAV server URL and credentials as the sync server. Default is Nutstore (坚果云) at `https://dav.jianguoyun.com/dav/`, plus a save directory (default `MarkQ`).
 - Users add mark entries. Content supports text, images, and files. Each entry has a date/time, defaulting to now.
-- Swipe right marks an item complete. If it is already complete, swipe right uncompletes it. Swipe left deletes. Delete requires a second confirmation. Swipe distance must be high enough that a light flick cannot trigger complete or delete.
+- Swipe right marks an item complete. If it is already complete, swipe right uncompletes it. Swipe left deletes. Delete requires a second confirmation. Swipe distance must be high enough that a light flick cannot trigger complete or delete. The complete/delete color and icon must track the finger, and the settle/snap animation must finish.
+- Tap a mark card to open its detail/editor (text, images, files, datetime, author, color). Tap is not a swipe.
+- Each mark has an editable color that is stored on the entry and synced over WebDAV.
 - Completed items show strikethrough and/or a gray filter.
 - The top/app bar stays compact (short height, no extra vertical padding).
+- Cards stay visually distinct from the screen background.
 - A user can share the WebDAV address via an app-generated share code so others can mark together.
 - Each user must set a nickname so markers are distinguishable.
 - Every user action must sync to other users: create, complete, delete.
@@ -74,6 +77,7 @@ Entry JSON (`schemaVersion` 1):
   "deleted": false,
   "deletedBy": null,
   "deletedAt": null,
+  "color": "#5B8DEF",
   "attachments": [
     {
       "id": "uuid",
@@ -103,7 +107,7 @@ Deletes are **tombstones** (`deleted: true`) so other clients see the removal. D
 
 ### Conflict merge
 
-- Content fields (`text`, `occurredAt`, `attachments`) follow newer `contentUpdatedAt`.
+- Content fields (`text`, `occurredAt`, `attachments`, `color`) follow newer `contentUpdatedAt`.
 - Status fields (`completed*`, `deleted*`) follow newer `statusUpdatedAt`.
 - Equal timestamps: deterministic tie-break so clients converge (compare `updatedBy` then payload).
 

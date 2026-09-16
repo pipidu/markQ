@@ -8,6 +8,7 @@ import com.markq.core.MarkEntry
 import com.markq.data.local.AppSettings
 import com.markq.data.local.AttachmentEntity
 import com.markq.data.local.AttachmentStore
+import com.markq.data.local.CacheJanitor
 import com.markq.data.local.EntryWithAttachments
 import com.markq.data.local.MarkDatabase
 import com.markq.data.local.SettingsStore
@@ -66,29 +67,14 @@ class MarkRepository(
     suspend fun create(
         text: String,
         occurredAt: Instant,
+        color: String?,
         attachments: List<PendingAttachment>,
     ) {
         val cfg = settings.current()
         requireNickname(cfg.nickname)
         val now = Instant.now()
         val id = UUID.randomUUID().toString()
-        val stored = attachments.map { pending ->
-            val attachId = UUID.randomUUID().toString()
-            val copied = files.copyFromUri(appContext, pending.uri, id, attachId)
-            val kind = if (pending.mime.startsWith("image/")) "image" else "file"
-            AttachmentEntity(
-                id = attachId,
-                entryId = id,
-                name = pending.name,
-                mime = pending.mime.ifBlank { "application/octet-stream" },
-                kind = kind,
-                size = copied.size,
-                sha256 = copied.sha256,
-                localPath = copied.file.absolutePath,
-                dirty = true,
-                remoteEtag = null,
-            )
-        }
+        val stored = storeNewAttachments(id, attachments)
         val entry = MarkEntry(
             id = id,
             occurredAt = occurredAt,
@@ -98,12 +84,50 @@ class MarkRepository(
             text = text,
             createdBy = cfg.nickname,
             updatedBy = cfg.nickname,
+            color = com.markq.core.MarkColor.normalize(color),
             attachments = stored.map {
                 MarkAttachment(it.id, it.name, it.mime, it.kind, it.size, it.sha256)
             },
         )
         db.entries().upsert(entry.toEntity(dirty = true, remoteEtag = null))
         stored.forEach { db.attachments().upsert(it) }
+        pruneCache()
+        sync.sync()
+    }
+
+    suspend fun update(
+        id: String,
+        text: String,
+        occurredAt: Instant,
+        color: String?,
+        keepAttachmentIds: List<String>,
+        newAttachments: List<PendingAttachment>,
+    ) {
+        val row = db.entries().get(id) ?: return
+        val cfg = settings.current()
+        requireNickname(cfg.nickname)
+        val now = Instant.now()
+        val kept = row.attachments.filter { it.id in keepAttachmentIds }
+        val added = storeNewAttachments(id, newAttachments)
+        val all = kept + added
+        val model = row.toModel().copy(
+            text = text,
+            occurredAt = occurredAt,
+            color = com.markq.core.MarkColor.normalize(color),
+            contentUpdatedAt = now,
+            updatedBy = cfg.nickname,
+            attachments = all.map {
+                MarkAttachment(it.id, it.name, it.mime, it.kind, it.size, it.sha256)
+            },
+        )
+        db.entries().upsert(model.toEntity(dirty = true, remoteEtag = row.entry.remoteEtag))
+        if (all.isEmpty()) {
+            db.attachments().deleteForEntry(id)
+        } else {
+            db.attachments().deleteMissing(id, all.map { it.id })
+            all.forEach { db.attachments().upsert(it) }
+        }
+        pruneCache()
         sync.sync()
     }
 
@@ -154,6 +178,31 @@ class MarkRepository(
         val name: String,
         val mime: String,
     )
+
+    private fun storeNewAttachments(entryId: String, attachments: List<PendingAttachment>): List<AttachmentEntity> {
+        return attachments.map { pending ->
+            val attachId = UUID.randomUUID().toString()
+            val copied = files.copyFromUri(appContext, pending.uri, entryId, attachId)
+            val kind = if (pending.mime.startsWith("image/")) "image" else "file"
+            AttachmentEntity(
+                id = attachId,
+                entryId = entryId,
+                name = pending.name,
+                mime = pending.mime.ifBlank { "application/octet-stream" },
+                kind = kind,
+                size = copied.size,
+                sha256 = copied.sha256,
+                localPath = copied.file.absolutePath,
+                dirty = true,
+                remoteEtag = null,
+            )
+        }
+    }
+
+    suspend fun pruneCache(keepUpdateApk: Boolean = false) {
+        val hashes = db.attachments().allHashes().filter { it.isNotBlank() }.toSet()
+        CacheJanitor.prune(appContext, files, hashes, keepUpdateApk)
+    }
 
     private fun requireNickname(nickname: String) {
         require(nickname.trim().isNotEmpty()) {

@@ -34,6 +34,8 @@
     <string name="complete">完成</string>
     <string name="uncomplete">取消完成</string>
     <string name="new_mark">新标记</string>
+    <string name="edit_mark">标记详情</string>
+    <string name="color_label">颜色</string>
     <string name="text">文字</string>
     <string name="date_and_time">日期和时间</string>
     <string name="change_date">更改日期</string>
@@ -55,6 +57,7 @@
     <string name="update_available_body">MarkQ %1$s 已在应用内下载完成，是否安装？</string>
     <string name="update_available_downloading">正在下载 MarkQ %1$s…</string>
     <string name="update_download_percent">已下载 %1$d%%</string>
+    <string name="update_download_progress">已下载 %1$d%% · %2$s</string>
     <string name="allow_unknown_sources">请允许 MarkQ 安装未知应用，返回后将继续安装。</string>
     <string name="update_install">安装</string>
     <string name="update_later">以后再说</string>

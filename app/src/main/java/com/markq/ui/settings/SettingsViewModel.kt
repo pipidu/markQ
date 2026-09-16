@@ -31,6 +31,7 @@ data class SettingsForm(
     val checkingUpdate: Boolean = false,
     val downloading: Boolean = false,
     val downloadPercent: Int = 0,
+    val downloadBytesPerSec: Long = 0L,
     val downloadIndeterminate: Boolean = false,
     val nicknameError: Boolean = false,
 )
@@ -81,6 +82,7 @@ class SettingsViewModel(
                         checkingUpdate = st.userInitiated && (st.checking || st.downloading),
                         downloading = st.downloading,
                         downloadPercent = st.progressPercent,
+                        downloadBytesPerSec = st.downloadBytesPerSec,
                         downloadIndeterminate = st.downloading && st.downloadTotal <= 0L,
                         update = st.info,
                         message = when {

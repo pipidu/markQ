@@ -8,6 +8,7 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import android.provider.Settings
 import android.net.Uri
+import com.markq.data.local.CacheJanitor
 import java.io.File
 
 object ApkInstaller {
@@ -69,6 +70,8 @@ class InstallStatusReceiver : BroadcastReceiver() {
             val confirm = confirmationIntent(intent) ?: return
             confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(confirm)
+        } else if (status == PackageInstaller.STATUS_SUCCESS) {
+            CacheJanitor.deleteUpdateApks(context)
         }
     }
 

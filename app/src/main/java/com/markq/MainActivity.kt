@@ -27,9 +27,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.markq.core.ByteFormat
 import com.markq.ui.MainViewModel
 import com.markq.ui.appViewModel
 import com.markq.ui.editor.EditorScreen
@@ -86,14 +89,27 @@ class MainActivity : ComponentActivity() {
                         composable("home") {
                             HomeScreen(
                                 onAdd = { nav.navigate("editor") },
+                                onOpen = { id -> nav.navigate("editor?entryId=$id") },
                                 onSettings = { nav.navigate("settings") },
                             )
                         }
                         composable("settings") {
                             SettingsScreen(onBack = { nav.popBackStack() })
                         }
-                        composable("editor") {
-                            EditorScreen(onDone = { nav.popBackStack() })
+                        composable(
+                            route = "editor?entryId={entryId}",
+                            arguments = listOf(
+                                navArgument("entryId") {
+                                    type = NavType.StringType
+                                    nullable = true
+                                    defaultValue = null
+                                },
+                            ),
+                        ) { back ->
+                            EditorScreen(
+                                entryId = back.arguments?.getString("entryId"),
+                                onDone = { nav.popBackStack() },
+                            )
                         }
                     }
                 }
@@ -114,7 +130,13 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                         Spacer(Modifier.height(8.dp))
-                                        Text(stringResource(R.string.update_download_percent, update.progressPercent))
+                                        Text(
+                                            stringResource(
+                                                R.string.update_download_progress,
+                                                update.progressPercent,
+                                                ByteFormat.speed(update.downloadBytesPerSec),
+                                            ),
+                                        )
                                     } else {
                                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                     }

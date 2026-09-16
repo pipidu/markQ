@@ -98,6 +98,19 @@ class EntryMergeTest {
     }
 
     @Test
+    fun colorFollowsContentTimestamp() {
+        val local = base().copy(
+            color = "#F6C945",
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T12:00:00Z"),
+        )
+        val remote = base().copy(
+            color = "#5B8DEF",
+            contentUpdatedAt = java.time.Instant.parse("2026-01-01T11:00:00Z"),
+        )
+        assertEquals("#F6C945", EntryMerge.merge(local, remote).color)
+    }
+
+    @Test
     fun newerDeleteWinsStatus() {
         val local = base().copy(
             completed = true,
@@ -257,5 +270,23 @@ class SyncErrorsTest {
         assertTrue(SyncErrors.isSilent("PUT /dav/MarkQ/entries/a.json failed (412)"))
         assertFalse(SyncErrors.isSilent("PUT /dav/MarkQ/entries/a.json failed (500)"))
         assertFalse(SyncErrors.isSilent(null as String?))
+    }
+}
+
+class ByteFormatTest {
+    @Test
+    fun formatsSpeed() {
+        assertEquals("500 B/s", ByteFormat.speed(500))
+        assertEquals("12 KB/s", ByteFormat.speed(12_000))
+        assertEquals("1.5 MB/s", ByteFormat.speed(1_500_000))
+    }
+}
+
+class MarkColorTest {
+    @Test
+    fun parsesAndNormalizesHex() {
+        assertEquals(0xFFF6C945L, MarkColor.parseArgb("#F6C945"))
+        assertEquals("#5B8DEF", MarkColor.normalize("5b8def"))
+        assertEquals(null, MarkColor.parseArgb("not-a-color"))
     }
 }

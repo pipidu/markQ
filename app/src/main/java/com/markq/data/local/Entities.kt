@@ -25,6 +25,7 @@ data class EntryEntity(
     val deleted: Boolean,
     val deletedBy: String?,
     val deletedAt: Long?,
+    val color: String?,
     val dirty: Boolean,
     val remoteEtag: String?,
 )
@@ -73,6 +74,7 @@ data class EntryWithAttachments(
         deleted = entry.deleted,
         deletedBy = entry.deletedBy,
         deletedAt = entry.deletedAt?.let(Instant::ofEpochMilli),
+        color = entry.color,
         attachments = attachments.map {
             MarkAttachment(
                 id = it.id,
@@ -101,6 +103,7 @@ fun MarkEntry.toEntity(dirty: Boolean, remoteEtag: String?): EntryEntity = Entry
     deleted = deleted,
     deletedBy = deletedBy,
     deletedAt = deletedAt?.toEpochMilli(),
+    color = color,
     dirty = dirty,
     remoteEtag = remoteEtag,
 )
