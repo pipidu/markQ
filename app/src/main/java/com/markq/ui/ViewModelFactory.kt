@@ -15,14 +15,14 @@ inline fun <reified VM : ViewModel> appViewModel(): VM {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val repo = app.container.repository
-                val updates = app.container.updates
+                val updates = app.container.updateManager
                 val created: ViewModel = when (modelClass) {
                     com.markq.ui.home.HomeViewModel::class.java -> com.markq.ui.home.HomeViewModel(repo)
-                    com.markq.ui.setup.SetupViewModel::class.java -> com.markq.ui.setup.SetupViewModel(repo)
+                    com.markq.ui.setup.SetupViewModel::class.java -> com.markq.ui.setup.SetupViewModel(repo, app)
                     com.markq.ui.settings.SettingsViewModel::class.java ->
                         com.markq.ui.settings.SettingsViewModel(repo, updates, app)
                     com.markq.ui.editor.EditorViewModel::class.java -> com.markq.ui.editor.EditorViewModel(repo)
-                    com.markq.ui.MainViewModel::class.java -> com.markq.ui.MainViewModel(repo, updates, app)
+                    com.markq.ui.MainViewModel::class.java -> com.markq.ui.MainViewModel(repo, updates)
                     else -> error("Unknown ViewModel ${modelClass.simpleName}")
                 }
                 return created as T

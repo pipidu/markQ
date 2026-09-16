@@ -40,9 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.markq.LocaleHelper
+import com.markq.R
 import com.markq.ui.appViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -76,10 +79,10 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New mark") },
+                title = { Text(stringResource(R.string.new_mark)) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -96,26 +99,27 @@ fun EditorScreen(
                 value = state.text,
                 onValueChange = vm::setText,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Text") },
+                label = { Text(stringResource(R.string.text)) },
                 minLines = 4,
             )
             Spacer(Modifier.height(12.dp))
             val whenLabel = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+                .withLocale(LocaleHelper.appLocale)
                 .format(state.date.atTime(state.time))
-            Text("Date and time", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.date_and_time), style = MaterialTheme.typography.labelLarge)
             Text(whenLabel, style = MaterialTheme.typography.bodyLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { showDate = true }) { Text("Change date") }
-                OutlinedButton(onClick = { showTime = true }) { Text("Change time") }
+                OutlinedButton(onClick = { showDate = true }) { Text(stringResource(R.string.change_date)) }
+                OutlinedButton(onClick = { showTime = true }) { Text(stringResource(R.string.change_time)) }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }) { Text("Add images") }
+                }) { Text(stringResource(R.string.add_images)) }
                 OutlinedButton(onClick = {
                     filePicker.launch(arrayOf("*/*"))
-                }) { Text("Add files") }
+                }) { Text(stringResource(R.string.add_files)) }
             }
             if (state.attachments.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
@@ -125,7 +129,7 @@ fun EditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(att.name, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { vm.removeAttachment(att.uri) }) { Text("Remove") }
+                        TextButton(onClick = { vm.removeAttachment(att.uri) }) { Text(stringResource(R.string.remove)) }
                     }
                 }
             }
@@ -139,7 +143,7 @@ fun EditorScreen(
                 enabled = !state.busy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (state.busy) "Saving…" else "Save")
+                Text(if (state.busy) stringResource(R.string.saving) else stringResource(R.string.save))
             }
         }
     }
@@ -156,9 +160,9 @@ fun EditorScreen(
                         vm.setDate(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate())
                     }
                     showDate = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.ok)) }
             },
-            dismissButton = { TextButton(onClick = { showDate = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showDate = false }) { Text(stringResource(R.string.cancel)) } },
         ) {
             DatePicker(state = picker)
         }
@@ -176,9 +180,9 @@ fun EditorScreen(
                 TextButton(onClick = {
                     vm.setTime(java.time.LocalTime.of(picker.hour, picker.minute))
                     showTime = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.ok)) }
             },
-            dismissButton = { TextButton(onClick = { showTime = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showTime = false }) { Text(stringResource(R.string.cancel)) } },
             text = { TimePicker(state = picker) },
         )
     }

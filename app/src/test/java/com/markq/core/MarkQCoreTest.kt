@@ -115,3 +115,21 @@ class WebDavCursorTest {
         assertEquals("abc", com.markq.data.remote.WebDavClient.normalizeEtag("\"abc\""))
     }
 }
+
+class ApkFileTest {
+    @Test
+    fun acceptsZipMagic() {
+        val file = java.io.File.createTempFile("markq", ".apk")
+        file.writeBytes(byteArrayOf(0x50, 0x4B, 0x03, 0x04, 0x00))
+        assertTrue(com.markq.data.UpdateChecker.isApkFile(file))
+        file.delete()
+    }
+
+    @Test
+    fun rejectsHtml() {
+        val file = java.io.File.createTempFile("markq", ".apk")
+        file.writeText("<html>not an apk</html>")
+        assertFalse(com.markq.data.UpdateChecker.isApkFile(file))
+        file.delete()
+    }
+}

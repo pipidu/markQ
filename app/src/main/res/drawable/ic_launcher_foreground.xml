@@ -4,11 +4,9 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Closed filled check (Material check scaled into the 66dp adaptive safe zone).
+         Open stroke polylines were filling as a triangle on the launcher. -->
     <path
         android:fillColor="#F4FBF7"
-        android:pathData="M34,54 L48,68 L76,40"
-        android:strokeWidth="8"
-        android:strokeColor="#F4FBF7"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M47.25,63.45 L37.8,54 L34.65,57.15 L47.25,69.75 L74.25,42.75 L71.1,39.6 Z" />
 </vector>

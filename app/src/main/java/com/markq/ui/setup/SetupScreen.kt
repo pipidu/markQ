@@ -18,9 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.markq.R
 import com.markq.ui.appViewModel
 
 @Composable
@@ -33,10 +35,10 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             .padding(24.dp),
         verticalArrangement = Arrangement.Top,
     ) {
-        Text("MarkQ", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Team marking on your own WebDAV server.",
+            stringResource(R.string.setup_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -45,7 +47,9 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             value = state.nickname,
             onValueChange = vm::setNickname,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Nickname") },
+            label = { Text(stringResource(R.string.nickname)) },
+            supportingText = { Text(stringResource(R.string.nickname_required_hint)) },
+            isError = state.nicknameError,
             singleLine = true,
         )
         Spacer(Modifier.height(16.dp))
@@ -53,36 +57,36 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             value = state.shareCode,
             onValueChange = vm::setShareCode,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Share code (optional)") },
-            supportingText = { Text("Paste a code from a teammate to fill the server fields.") },
+            label = { Text(stringResource(R.string.share_code_optional)) },
+            supportingText = { Text(stringResource(R.string.share_code_hint)) },
         )
         OutlinedButton(
             onClick = vm::applyShareCode,
             enabled = !state.busy && state.shareCode.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Apply share code")
+            Text(stringResource(R.string.apply_share_code))
         }
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = state.url,
             onValueChange = vm::setUrl,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("WebDAV URL") },
+            label = { Text(stringResource(R.string.webdav_url)) },
             singleLine = true,
         )
         OutlinedTextField(
             value = state.username,
             onValueChange = vm::setUsername,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Username (if needed)") },
+            label = { Text(stringResource(R.string.username_optional)) },
             singleLine = true,
         )
         OutlinedTextField(
             value = state.password,
             onValueChange = vm::setPassword,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Password (if needed)") },
+            label = { Text(stringResource(R.string.password_optional)) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
         )
@@ -96,7 +100,11 @@ fun SetupScreen(vm: SetupViewModel = appViewModel()) {
             enabled = !state.busy,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            if (state.busy) CircularProgressIndicator(strokeWidth = 2.dp) else Text("Save and connect")
+            if (state.busy) {
+                CircularProgressIndicator(strokeWidth = 2.dp)
+            } else {
+                Text(stringResource(R.string.save_and_connect))
+            }
         }
     }
 }

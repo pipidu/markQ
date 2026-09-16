@@ -1,5 +1,6 @@
 package com.markq
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,6 +32,10 @@ import com.markq.ui.setup.SetupScreen
 import com.markq.ui.theme.MarkQTheme
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -37,10 +44,9 @@ class MainActivity : ComponentActivity() {
                 val main: MainViewModel = appViewModel()
                 val settings by main.settings.collectAsStateWithLifecycle()
                 val update by main.update.collectAsStateWithLifecycle()
-                val installing by main.installing.collectAsStateWithLifecycle()
-                val updateMessage by main.updateMessage.collectAsStateWithLifecycle()
                 val snackbar = remember { SnackbarHostState() }
                 val nav = rememberNavController()
+                val context = LocalContext.current
                 val start = if (settings.isConfigured) "home" else "setup"
 
                 LaunchedEffect(settings.isConfigured) {
@@ -53,9 +59,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(updateMessage) {
-                    val msg = updateMessage
-                    if (msg != null) {
+                LaunchedEffect(update.error) {
+                    val msg = update.error
+                    if (msg != null && !update.readyToInstall && !update.downloading && !update.checking) {
                         snackbar.showSnackbar(msg)
                         main.consumeUpdateMessage()
                     }
@@ -86,25 +92,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val info = update
-                if (info != null) {
+                if (update.downloading || update.readyToInstall) {
+                    val version = update.info?.version.orEmpty()
                     AlertDialog(
-                        onDismissRequest = { main.dismissUpdate() },
-                        title = { Text("Update available") },
+                        onDismissRequest = {
+                            if (!update.downloading) main.dismissUpdate()
+                        },
+                        title = { Text(stringResource(R.string.update_available_title)) },
                         text = {
                             Text(
-                                if (installing) "Downloading MarkQ ${info.version}…"
-                                else "MarkQ ${info.version} is on GitHub Releases.",
+                                if (update.downloading || version.isBlank()) {
+                                    stringResource(R.string.downloading_update)
+                                } else {
+                                    stringResource(R.string.update_available_body, version)
+                                },
                             )
                         },
                         confirmButton = {
                             TextButton(
-                                onClick = { main.installUpdate(info) },
-                                enabled = !installing,
-                            ) { Text("Update") }
+                                onClick = { main.installUpdate(context) },
+                                enabled = update.readyToInstall,
+                            ) { Text(stringResource(R.string.update_install)) }
                         },
                         dismissButton = {
-                            TextButton(onClick = { main.dismissUpdate() }) { Text("Later") }
+                            TextButton(
+                                onClick = { main.dismissUpdate() },
+                                enabled = !update.downloading,
+                            ) { Text(stringResource(R.string.update_later)) }
                         },
                     )
                 }

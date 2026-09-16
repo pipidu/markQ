@@ -2,7 +2,6 @@ package com.markq.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -52,12 +49,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.markq.LocaleHelper
+import com.markq.R
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.appViewModel
 import java.io.File
@@ -86,20 +87,20 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("MarkQ") },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = vm::refresh, enabled = !sync.running) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.sync))
                     }
                     IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = "Add mark")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_mark))
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -112,7 +113,7 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    if (sync.running) "Syncing…" else "No marks yet. Tap + to add one.",
+                    if (sync.running) stringResource(R.string.syncing) else stringResource(R.string.empty_marks),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -139,16 +140,16 @@ fun HomeScreen(
     if (deleteId != null) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete this mark?") },
-            text = { Text("This removes it for everyone on the shared server.") },
+            title = { Text(stringResource(R.string.delete_title)) },
+            text = { Text(stringResource(R.string.delete_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.delete(deleteId)
                     pendingDelete = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -188,11 +189,6 @@ private fun SwipeMarkRow(
                 },
                 label = "swipe-bg",
             )
-            val icon = when (target) {
-                SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
-                else -> null
-            }
             val align = when (target) {
                 SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
                 SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
@@ -205,7 +201,19 @@ private fun SwipeMarkRow(
                     .padding(horizontal = 20.dp),
                 contentAlignment = align,
             ) {
-                if (icon != null) Icon(icon, contentDescription = null, tint = Color.White)
+                when (target) {
+                    SwipeToDismissBoxValue.StartToEnd -> Icon(
+                        painterResource(R.drawable.ic_check),
+                        contentDescription = stringResource(R.string.complete),
+                        tint = Color.White,
+                    )
+                    SwipeToDismissBoxValue.EndToStart -> Icon(
+                        Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.delete),
+                        tint = Color.White,
+                    )
+                    else -> Unit
+                }
             }
         },
     ) {
@@ -238,12 +246,25 @@ private fun MarkCard(row: EntryWithAttachments) {
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(
-                text = row.entry.text.ifBlank { "(no text)" },
-                style = textStyle,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.Top) {
+                if (completed) {
+                    Icon(
+                        painterResource(R.drawable.ic_check),
+                        contentDescription = stringResource(R.string.complete),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(end = 8.dp, top = 2.dp)
+                            .size(18.dp),
+                    )
+                }
+                Text(
+                    text = row.entry.text.ifBlank { stringResource(R.string.no_text) },
+                    style = textStyle,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Text(
                 formatWhen(row.entry.occurredAt),
@@ -251,7 +272,7 @@ private fun MarkCard(row: EntryWithAttachments) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                buildAttribution(row),
+                attributionText(row),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -283,17 +304,21 @@ private fun MarkCard(row: EntryWithAttachments) {
     }
 }
 
-private fun buildAttribution(row: EntryWithAttachments): String {
-    val by = "by ${row.entry.createdBy}"
+@Composable
+private fun attributionText(row: EntryWithAttachments): String {
+    val created = row.entry.createdBy
     return if (row.entry.completed) {
         val who = row.entry.completedBy?.takeIf { it.isNotBlank() }
-        if (who != null) "$by · done by $who" else "$by · done"
+        if (who != null) stringResource(R.string.attr_completed_by, created, who)
+        else stringResource(R.string.attr_completed, created)
     } else {
-        by
+        stringResource(R.string.attr_by, created)
     }
 }
 
 private val dateFmt: DateTimeFormatter =
-    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withZone(ZoneId.systemDefault())
+    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+        .withLocale(LocaleHelper.appLocale)
+        .withZone(ZoneId.systemDefault())
 
 fun formatWhen(epochMs: Long): String = dateFmt.format(Instant.ofEpochMilli(epochMs))

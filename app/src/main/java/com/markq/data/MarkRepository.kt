@@ -2,6 +2,7 @@ package com.markq.data
 
 import android.content.Context
 import android.net.Uri
+import com.markq.R
 import com.markq.core.MarkAttachment
 import com.markq.core.MarkEntry
 import com.markq.data.local.AppSettings
@@ -37,12 +38,14 @@ class MarkRepository(
     suspend fun getEntry(id: String): EntryWithAttachments? = db.entries().get(id)
 
     suspend fun saveServer(nickname: String, url: String, username: String, password: String) {
+        requireNickname(nickname)
         sync.testConnection(WebDavConfig(url.trim(), username, password))
         settings.saveServer(nickname, url, username, password)
         sync.sync()
     }
 
     suspend fun saveNickname(nickname: String) {
+        requireNickname(nickname)
         settings.saveNickname(nickname)
     }
 
@@ -54,6 +57,7 @@ class MarkRepository(
         attachments: List<PendingAttachment>,
     ) {
         val cfg = settings.current()
+        requireNickname(cfg.nickname)
         val now = Instant.now()
         val id = UUID.randomUUID().toString()
         val stored = attachments.map { pending ->
@@ -95,6 +99,7 @@ class MarkRepository(
         val row = db.entries().get(id) ?: return
         if (row.entry.completed) return
         val cfg = settings.current()
+        requireNickname(cfg.nickname)
         val now = Instant.now()
         val model = row.toModel().copy(
             completed = true,
@@ -110,6 +115,7 @@ class MarkRepository(
     suspend fun delete(id: String) {
         val row = db.entries().get(id) ?: return
         val cfg = settings.current()
+        requireNickname(cfg.nickname)
         val now = Instant.now()
         val model = row.toModel().copy(
             deleted = true,
@@ -127,4 +133,10 @@ class MarkRepository(
         val name: String,
         val mime: String,
     )
+
+    private fun requireNickname(nickname: String) {
+        require(nickname.trim().isNotEmpty()) {
+            appContext.getString(R.string.error_nickname_required)
+        }
+    }
 }

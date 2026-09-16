@@ -18,8 +18,9 @@ data class AppSettings(
     val password: String = "",
     val lastSyncEpochMs: Long = 0L,
 ) {
-    val isConfigured: Boolean
-        get() = nickname.isNotBlank() && webdavUrl.isNotBlank()
+    val hasNickname: Boolean get() = nickname.isNotBlank()
+    val hasServer: Boolean get() = webdavUrl.isNotBlank()
+    val isConfigured: Boolean get() = hasNickname && hasServer
 }
 
 class SettingsStore(context: Context) {
@@ -43,8 +44,10 @@ class SettingsStore(context: Context) {
         username: String,
         password: String,
     ) {
+        val nick = nickname.trim()
+        require(nick.isNotEmpty()) { "nickname" }
         dataStore.edit { prefs ->
-            prefs[NICKNAME] = nickname.trim()
+            prefs[NICKNAME] = nick
             prefs[URL] = url.trim()
             prefs[USERNAME] = username.trim()
             prefs[PASSWORD] = password
@@ -52,7 +55,9 @@ class SettingsStore(context: Context) {
     }
 
     suspend fun saveNickname(nickname: String) {
-        dataStore.edit { it[NICKNAME] = nickname.trim() }
+        val nick = nickname.trim()
+        require(nick.isNotEmpty()) { "nickname" }
+        dataStore.edit { it[NICKNAME] = nick }
     }
 
     suspend fun setLastSync(epochMs: Long) {

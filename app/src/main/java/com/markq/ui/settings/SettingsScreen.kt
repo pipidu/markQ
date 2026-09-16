@@ -24,11 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markq.BuildConfig
+import com.markq.R
 import com.markq.ui.appViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,13 +42,14 @@ fun SettingsScreen(
 ) {
     val form by vm.form.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -62,39 +66,41 @@ fun SettingsScreen(
                 value = form.nickname,
                 onValueChange = vm::setNickname,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Nickname") },
+                label = { Text(stringResource(R.string.nickname)) },
+                supportingText = { Text(stringResource(R.string.nickname_required_hint)) },
+                isError = form.nicknameError,
                 singleLine = true,
             )
             OutlinedTextField(
                 value = form.url,
                 onValueChange = vm::setUrl,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("WebDAV URL") },
+                label = { Text(stringResource(R.string.webdav_url)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = form.username,
                 onValueChange = vm::setUsername,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.username)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = form.password,
                 onValueChange = vm::setPassword,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
             )
             Spacer(Modifier.height(12.dp))
             Button(onClick = vm::save, enabled = !form.busy, modifier = Modifier.fillMaxWidth()) {
-                Text("Save server")
+                Text(stringResource(R.string.save_server))
             }
             Spacer(Modifier.height(24.dp))
-            Text("Share code", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.share_code), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Send this to teammates so they can join the same WebDAV folder.",
+                stringResource(R.string.share_code_help),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -103,25 +109,31 @@ fun SettingsScreen(
             OutlinedButton(
                 onClick = { clipboard.setText(AnnotatedString(form.shareCode)) },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Copy share code") }
+            ) { Text(stringResource(R.string.copy_share_code)) }
             Spacer(Modifier.height(24.dp))
-            Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.version_label, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             OutlinedButton(
                 onClick = vm::checkUpdate,
                 enabled = !form.checkingUpdate,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (form.checkingUpdate) "Checking…" else "Check for updates")
+                Text(
+                    if (form.checkingUpdate) stringResource(R.string.checking_updates)
+                    else stringResource(R.string.check_for_updates),
+                )
             }
             val update = form.update
             if (update != null) {
                 Spacer(Modifier.height(8.dp))
-                Text("Update ${update.version} is available.")
+                Text(stringResource(R.string.update_ready, update.version))
                 Button(
-                    onClick = { vm.installUpdate(update) },
-                    enabled = !form.busy,
+                    onClick = { vm.installUpdate(context) },
+                    enabled = !form.busy && !form.checkingUpdate,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Download and install") }
+                ) { Text(stringResource(R.string.update_install)) }
             }
             if (form.message != null) {
                 Spacer(Modifier.height(12.dp))
