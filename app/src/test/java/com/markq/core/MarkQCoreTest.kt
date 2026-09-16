@@ -446,13 +446,18 @@ class MarkPlaceTest {
         assertTrue(navi.contains("lat=31.230400"))
         assertTrue(navi.contains("lon=121.473700"))
 
-        val baidu = MarkPlace.baiduNaviUri(31.2304, 121.4737)
-        assertEquals(
-            "baidumap://map/navi?location=31.230400,121.473700&coord_type=wgs84&src=andr.markq.app",
-            baidu,
-        )
+        val baidu = MarkPlace.baiduMarkerUri(31.2304, 121.4737, "上海")
+        assertTrue(baidu.startsWith("baidumap://map/marker?"))
+        assertTrue(baidu.contains("location=31.230400,121.473700"))
+        assertTrue(baidu.contains("coord_type=wgs84"))
+        assertTrue(baidu.contains("title=%E4%B8%8A%E6%B5%B7") || baidu.contains("title=上海"))
+        assertFalse(baidu.contains("navi"))
         assertFalse(baidu.contains("query="))
-        assertFalse(baidu.contains("%E4"))
+        assertFalse(baidu.contains("%25"))
+        assertEquals(
+            "baidumap://map/geocoder?location=31.230400,121.473700&coord_type=wgs84&src=andr.markq.app",
+            MarkPlace.baiduGeocoderUri(31.2304, 121.4737),
+        )
 
         assertEquals("位置", MarkPlace.shortPoiName(null))
         assertEquals("位置", MarkPlace.shortPoiName("  "))

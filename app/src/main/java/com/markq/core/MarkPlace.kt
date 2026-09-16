@@ -56,14 +56,25 @@ object MarkPlace {
     }
 
     fun amapUris(latitude: Double, longitude: Double, placeName: String?): List<String> = listOf(
+        amapViewMapUri(latitude, longitude, placeName),
         amapRouteUri(latitude, longitude, placeName),
         amapNaviUri(latitude, longitude, placeName),
-        amapViewMapUri(latitude, longitude, placeName),
     )
 
-    fun baiduNaviUri(latitude: Double, longitude: Double): String =
-        "baidumap://map/navi?location=${coord(latitude)},${coord(longitude)}" +
+    fun baiduMarkerUri(latitude: Double, longitude: Double, placeName: String?): String {
+        val title = encodeOnce(shortPoiName(placeName))
+        return "baidumap://map/marker?location=${coord(latitude)},${coord(longitude)}" +
+            "&coord_type=wgs84&title=$title&src=$BAIDU_SRC"
+    }
+
+    fun baiduGeocoderUri(latitude: Double, longitude: Double): String =
+        "baidumap://map/geocoder?location=${coord(latitude)},${coord(longitude)}" +
             "&coord_type=wgs84&src=$BAIDU_SRC"
+
+    fun baiduUris(latitude: Double, longitude: Double, placeName: String?): List<String> = listOf(
+        baiduMarkerUri(latitude, longitude, placeName),
+        baiduGeocoderUri(latitude, longitude),
+    )
 
     private fun encodeOnce(plain: String): String =
         URLEncoder.encode(plain, StandardCharsets.UTF_8.name()).replace("+", "%20")

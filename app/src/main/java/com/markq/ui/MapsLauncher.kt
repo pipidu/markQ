@@ -46,7 +46,7 @@ object MapsLauncher {
         if (!installed(context, app.packageName)) return MapLaunch.Missing(app)
         val uris = when (app) {
             MapApp.Amap -> MarkPlace.amapUris(latitude!!, longitude!!, placeName)
-            MapApp.Baidu -> listOf(MarkPlace.baiduNaviUri(latitude!!, longitude!!))
+            MapApp.Baidu -> MarkPlace.baiduUris(latitude!!, longitude!!, placeName)
         }
         for (uri in uris) {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
