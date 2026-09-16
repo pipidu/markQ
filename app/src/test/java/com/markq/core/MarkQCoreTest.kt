@@ -335,3 +335,14 @@ class MarkTagsTest {
         assertFalse(MarkTags.contains("Work\u001Fhome", "other"))
     }
 }
+
+class ImageNamesTest {
+    @Test
+    fun webpFileNameKeepsBase() {
+        assertEquals("photo.webp", ImageNames.webpFileName("photo.jpg"))
+        assertEquals("photo.webp", ImageNames.webpFileName("photo"))
+        assertEquals("image.webp", ImageNames.webpFileName("   "))
+        assertEquals(60, ImageNames.WEBP_QUALITY)
+        assertEquals("image/webp", ImageNames.WEBP_MIME)
+    }
+}

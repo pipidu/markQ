@@ -6,6 +6,8 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 
 - The user sets a WebDAV server URL and credentials as the sync server. Default is Nutstore (坚果云) at `https://dav.jianguoyun.com/dav/`, plus a save directory (default `MarkQ`).
 - Users add mark entries. Content supports text, images, and files. Each entry has a date/time, defaulting to now.
+- Adding images offers a compression checkbox (checked by default). When checked, convert to WebP at 60% quality before storing the blob and uploading. When unchecked, store and upload the original.
+- Tapping an image on a mark (list thumbnail or editor) opens an in-app viewer with pinch-to-zoom and pan. Back/dismiss returns to the mark.
 - Tap a mark card to open its detail/editor (text, images, files, datetime, author, color, tags). Tap is not a swipe. The editor is editable and saves/syncs over WebDAV.
 - Pull down on the marks list for incremental WebDAV refresh (not a full download). Show the normal pull-to-refresh indicator.
 - In the editor, the color strip scrolls horizontally. That strip must keep those sideways gestures so a parent pager or swipe-to-complete cannot steal them.

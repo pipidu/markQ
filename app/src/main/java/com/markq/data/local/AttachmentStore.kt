@@ -20,8 +20,15 @@ class AttachmentStore(context: Context) {
         return File(File(root, entryId), attachId)
     }
 
-    fun copyFromUri(context: Context, uri: Uri, entryId: String, attachId: String): StoredFile {
+    fun copyFromUri(
+        context: Context,
+        uri: Uri,
+        entryId: String,
+        attachId: String,
+        compressImage: Boolean = false,
+    ): StoredFile {
         val tmp = File(root, "tmp-${UUID.randomUUID()}")
+        val webpTmp = File(root, "tmp-webp-${UUID.randomUUID()}")
         try {
             val path = uri.path
             if (uri.scheme == "file" && path != null) {
@@ -32,9 +39,13 @@ class AttachmentStore(context: Context) {
                     tmp.outputStream().use { output -> input.copyTo(output) }
                 }
             }
-            return commitBlob(tmp)
+            if (compressImage && ImageWebp.compressFile(tmp, webpTmp)) {
+                return commitBlob(webpTmp, usedWebp = true)
+            }
+            return commitBlob(tmp, usedWebp = false)
         } finally {
             tmp.delete()
+            webpTmp.delete()
         }
     }
 
@@ -42,7 +53,7 @@ class AttachmentStore(context: Context) {
         val tmp = File(root, "tmp-${UUID.randomUUID()}")
         try {
             tmp.writeBytes(bytes)
-            return commitBlob(tmp)
+            return commitBlob(tmp, usedWebp = false)
         } finally {
             tmp.delete()
         }
@@ -101,7 +112,7 @@ class AttachmentStore(context: Context) {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun commitBlob(tmp: File): StoredFile {
+    private fun commitBlob(tmp: File, usedWebp: Boolean = false): StoredFile {
         val hash = sha256(tmp)
         val dest = blob(hash)
         if (!dest.exists()) {
@@ -110,8 +121,13 @@ class AttachmentStore(context: Context) {
                 tmp.copyTo(dest, overwrite = true)
             }
         }
-        return StoredFile(dest, hash, dest.length())
+        return StoredFile(dest, hash, dest.length(), usedWebp)
     }
 
-    data class StoredFile(val file: File, val sha256: String, val size: Long)
+    data class StoredFile(
+        val file: File,
+        val sha256: String,
+        val size: Long,
+        val usedWebp: Boolean = false,
+    )
 }

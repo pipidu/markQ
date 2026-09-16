@@ -27,6 +27,7 @@ data class DraftAttachment(
     val name: String,
     val mime: String,
     val existingId: String? = null,
+    val fromImagePicker: Boolean = false,
 )
 
 data class EditorUiState(
@@ -39,6 +40,7 @@ data class EditorUiState(
     val tagDraft: String = "",
     val createdBy: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),
+    val compressImages: Boolean = true,
     val busy: Boolean = false,
     val error: String? = null,
     val saved: Boolean = false,
@@ -106,7 +108,9 @@ class EditorViewModel(
         }
     }
 
-    fun addUris(context: Context, uris: List<Uri>) {
+    fun setCompressImages(value: Boolean) = _state.update { it.copy(compressImages = value) }
+
+    fun addUris(context: Context, uris: List<Uri>, fromImagePicker: Boolean) {
         val pending = File(context.cacheDir, "pending").apply { mkdirs() }
         val extras = uris.map { uri ->
             val name = queryName(context, uri)
@@ -121,6 +125,7 @@ class EditorViewModel(
                 uri = Uri.fromFile(dest),
                 name = name,
                 mime = mime,
+                fromImagePicker = fromImagePicker,
             )
         }
         _state.update { it.copy(attachments = it.attachments + extras) }
@@ -136,10 +141,15 @@ class EditorViewModel(
             _state.update { it.copy(busy = true, error = null) }
             val occurred = s.date.atTime(s.time).atZone(ZoneId.systemDefault()).toInstant()
             runCatching {
+                val compress = s.compressImages
+                fun pending(att: DraftAttachment) = MarkRepository.PendingAttachment(
+                    uri = att.uri,
+                    name = att.name,
+                    mime = att.mime,
+                    compressImage = compress && att.fromImagePicker,
+                )
                 val keep = s.attachments.mapNotNull { it.existingId }
-                val fresh = s.attachments.filter { it.existingId == null }.map {
-                    MarkRepository.PendingAttachment(it.uri, it.name, it.mime)
-                }
+                val fresh = s.attachments.filter { it.existingId == null }.map(::pending)
                 val id = s.entryId
                 if (id.isNullOrBlank()) {
                     repo.create(
@@ -147,9 +157,7 @@ class EditorViewModel(
                         occurredAt = occurred,
                         color = s.color,
                         tags = s.tags,
-                        attachments = s.attachments.map {
-                            MarkRepository.PendingAttachment(it.uri, it.name, it.mime)
-                        },
+                        attachments = s.attachments.map(::pending),
                     )
                 } else {
                     repo.update(

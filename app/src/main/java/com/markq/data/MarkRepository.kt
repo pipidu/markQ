@@ -193,18 +193,30 @@ class MarkRepository(
         val uri: Uri,
         val name: String,
         val mime: String,
+        val compressImage: Boolean = false,
     )
 
     private fun storeNewAttachments(entryId: String, attachments: List<PendingAttachment>): List<AttachmentEntity> {
         return attachments.map { pending ->
             val attachId = UUID.randomUUID().toString()
-            val copied = files.copyFromUri(appContext, pending.uri, entryId, attachId)
-            val kind = if (pending.mime.startsWith("image/")) "image" else "file"
+            val wantCompress = pending.compressImage
+            val copied = files.copyFromUri(appContext, pending.uri, entryId, attachId, compressImage = wantCompress)
+            val mime = if (copied.usedWebp) {
+                com.markq.core.ImageNames.WEBP_MIME
+            } else {
+                pending.mime.ifBlank { "application/octet-stream" }
+            }
+            val name = if (copied.usedWebp) {
+                com.markq.core.ImageNames.webpFileName(pending.name)
+            } else {
+                pending.name
+            }
+            val kind = if (mime.startsWith("image/") || pending.compressImage) "image" else "file"
             AttachmentEntity(
                 id = attachId,
                 entryId = entryId,
-                name = pending.name,
-                mime = pending.mime.ifBlank { "application/octet-stream" },
+                name = name,
+                mime = mime,
                 kind = kind,
                 size = copied.size,
                 sha256 = copied.sha256,

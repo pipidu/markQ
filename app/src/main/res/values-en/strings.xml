@@ -52,6 +52,7 @@
     <string name="change_time">Change time</string>
     <string name="add_images">Add images</string>
     <string name="add_files">Add files</string>
+    <string name="compress_images">Compress images before upload (WebP 60%, on by default)</string>
     <string name="remove">Remove</string>
     <string name="save">Save</string>
     <string name="saving">Saving…</string>

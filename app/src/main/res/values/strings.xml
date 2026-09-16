@@ -52,6 +52,7 @@
     <string name="change_time">更改时间</string>
     <string name="add_images">添加图片</string>
     <string name="add_files">添加文件</string>
+    <string name="compress_images">压缩图片后上传（WebP 60%，默认开启）</string>
     <string name="remove">移除</string>
     <string name="save">保存</string>
     <string name="saving">正在保存…</string>

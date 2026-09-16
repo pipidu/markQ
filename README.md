@@ -57,7 +57,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 | 内容 | 说明 |
 | --- | --- |
 | 文字 | 可空，列表会显示「（无文字）」 |
-| 图片 / 文件 | 编辑页添加或移除 |
+| 图片 / 文件 | 编辑页添加或移除。添加图片时默认勾选「压缩图片后上传」：保存前转为 WebP（质量 60%）再写入本地并上传；取消勾选则上传原图。点列表缩略图或编辑页里的图片，可在应用内双指缩放、拖动查看，返回即回到标记。 |
 | 日期和时间 | 默认是当前时间，可改 |
 | 颜色 | 本条卡片的颜色，存在条目上并随 WebDAV 同步。编辑页颜色条可左右滑动选择 |
 | 标签 | 可加多个。存在条目上并同步 |
@@ -137,7 +137,7 @@ MarkQ is a team marking / shared checklist app for Android 8+. Shared data lives
 
 Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the server URL, folder, and credentials; the nickname is still entered locally.
 
-Marks support text, images, files, datetime, a per-entry color, and tags. Tap a card to edit. Swipe right to complete (or uncomplete). Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
+Marks support text, images, files, datetime, a per-entry color, and tags. New images can be compressed to WebP (60%, default on) before upload. Tap an image for an in-app pinch-zoom viewer. Tap a card to edit. Swipe right to complete (or uncomplete). Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow; cards have a green border and shadow.
 

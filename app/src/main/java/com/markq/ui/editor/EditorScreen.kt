@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,15 +47,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
+import com.markq.ui.ImageViewer
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
 import java.time.Instant
@@ -72,6 +79,7 @@ fun EditorScreen(
     val context = LocalContext.current
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
+    var viewing by remember { mutableStateOf<DraftAttachment?>(null) }
 
     LaunchedEffect(entryId) { vm.load(entryId) }
 
@@ -81,11 +89,11 @@ fun EditorScreen(
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
-    ) { uris -> if (uris.isNotEmpty()) vm.addUris(context, uris) }
+    ) { uris -> if (uris.isNotEmpty()) vm.addUris(context, uris, fromImagePicker = true) }
 
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
-    ) { uris -> if (uris.isNotEmpty()) vm.addUris(context, uris) }
+    ) { uris -> if (uris.isNotEmpty()) vm.addUris(context, uris, fromImagePicker = false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -192,13 +200,40 @@ fun EditorScreen(
                     filePicker.launch(arrayOf("*/*"))
                 }) { Text(stringResource(R.string.add_files)) }
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = state.compressImages,
+                    onCheckedChange = vm::setCompressImages,
+                )
+                Text(
+                    stringResource(R.string.compress_images),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable { vm.setCompressImages(!state.compressImages) },
+                )
+            }
             if (state.attachments.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 state.attachments.forEach { att ->
+                    val isImage = att.mime.startsWith("image/") || att.fromImagePicker
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (isImage && att.uri != Uri.EMPTY) {
+                            AsyncImage(
+                                model = att.uri,
+                                contentDescription = att.name,
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(64.dp)
+                                    .clickable { viewing = att },
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
                         Text(att.name, modifier = Modifier.weight(1f))
                         TextButton(onClick = { vm.removeAttachment(att.key) }) { Text(stringResource(R.string.remove)) }
                     }
@@ -255,6 +290,15 @@ fun EditorScreen(
             },
             dismissButton = { TextButton(onClick = { showTime = false }) { Text(stringResource(R.string.cancel)) } },
             text = { TimePicker(state = picker) },
+        )
+    }
+
+    val open = viewing
+    if (open != null && open.uri != Uri.EMPTY) {
+        ImageViewer(
+            model = open.uri,
+            contentDescription = open.name,
+            onDismiss = { viewing = null },
         )
     }
 }

@@ -3,6 +3,7 @@ package com.markq.ui.home
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,6 +79,7 @@ import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
+import com.markq.ui.ImageViewer
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.LocalMarkQUiColors
 import com.markq.ui.theme.exclusiveHorizontalScroll
@@ -105,6 +107,7 @@ fun HomeScreen(
     val ui = LocalMarkQUiColors.current
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
+    var viewing by remember { mutableStateOf<Pair<File, String>?>(null) }
 
     LaunchedEffect(sync.error) {
         val err = sync.error
@@ -186,6 +189,7 @@ fun HomeScreen(
                                 onToggleComplete = { vm.complete(row.entry.id) },
                                 onDeleteRequest = { pendingDelete = row.entry.id },
                                 onOpen = { onOpen(row.entry.id) },
+                                onOpenImage = { file, name -> viewing = file to name },
                             )
                         }
                     }
@@ -211,6 +215,15 @@ fun HomeScreen(
             },
         )
     }
+
+    val openImage = viewing
+    if (openImage != null) {
+        ImageViewer(
+            model = openImage.first,
+            contentDescription = openImage.second,
+            onDismiss = { viewing = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -220,6 +233,7 @@ private fun SwipeMarkRow(
     onToggleComplete: () -> Unit,
     onDeleteRequest: () -> Unit,
     onOpen: () -> Unit,
+    onOpenImage: (File, String) -> Unit,
 ) {
     val density = LocalDensity.current
     val minDismissPx = with(density) { 160.dp.toPx() }
@@ -305,12 +319,16 @@ private fun SwipeMarkRow(
             }
         },
     ) {
-        MarkCard(row = row, onOpen = onOpen)
+        MarkCard(row = row, onOpen = onOpen, onOpenImage = onOpenImage)
     }
 }
 
 @Composable
-private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
+private fun MarkCard(
+    row: EntryWithAttachments,
+    onOpen: () -> Unit,
+    onOpenImage: (File, String) -> Unit,
+) {
     val completed = row.entry.completed
     val ui = LocalMarkQUiColors.current
     val accent = MarkColor.parseArgb(row.entry.color)?.let { Color(it.toInt()) }
@@ -405,7 +423,9 @@ private fun MarkCard(row: EntryWithAttachments, onOpen: () -> Unit) {
                             AsyncImage(
                                 model = File(att.localPath!!),
                                 contentDescription = att.name,
-                                modifier = Modifier.size(64.dp),
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clickable { onOpenImage(File(att.localPath!!), att.name) },
                                 contentScale = ContentScale.Crop,
                             )
                         }
