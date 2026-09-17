@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.core.MarkListFilter
 import com.markq.core.MarkListVisibility
+import com.markq.core.MarkSearch
 import com.markq.core.MarkTags
 import com.markq.data.MarkRepository
 import com.markq.data.local.EntryWithAttachments
@@ -27,8 +28,12 @@ class HomeViewModel(
     )
     private val _listFilter = MutableStateFlow<MarkListFilter>(MarkListFilter.All)
     val listFilter: StateFlow<MarkListFilter> = _listFilter.asStateFlow()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _pulling = MutableStateFlow(false)
     val pulling: StateFlow<Boolean> = _pulling.asStateFlow()
+    private val _saveHint = MutableStateFlow<String?>(null)
+    val saveHint: StateFlow<String?> = _saveHint.asStateFlow()
 
     val availableTags: StateFlow<List<String>> = allEntries.map { rows ->
         rows.filter { !it.entry.completed }
@@ -37,12 +42,22 @@ class HomeViewModel(
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val entries: StateFlow<List<EntryWithAttachments>> = combine(allEntries, _listFilter) { rows, filter ->
+    val entries: StateFlow<List<EntryWithAttachments>> = combine(
+        allEntries,
+        _listFilter,
+        _searchQuery,
+    ) { rows, filter, query ->
         rows.filter { row ->
             MarkListVisibility.include(
                 completed = row.entry.completed,
                 tags = MarkTags.decode(row.entry.tags),
                 filter = filter,
+            ) && MarkSearch.matches(
+                query,
+                row.entry.text,
+                MarkTags.decode(row.entry.tags),
+                row.entry.createdBy,
+                row.entry.completedBy,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -54,9 +69,22 @@ class HomeViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val syncState: StateFlow<SyncUiState> = repo.syncState
+    val pendingCount: StateFlow<Int> = repo.pendingUploadCount.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        0,
+    )
+    val lastSyncEpochMs: StateFlow<Long> = repo.settingsFlow.map { it.lastSyncEpochMs }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        0L,
+    )
 
     init {
         viewModelScope.launch { repo.sync() }
+        viewModelScope.launch {
+            repo.saveHints.collect { _saveHint.value = it }
+        }
         viewModelScope.launch {
             combine(availableTags, _listFilter) { tags, selected -> selected to tags }
                 .collect { (selected, tags) ->
@@ -71,6 +99,14 @@ class HomeViewModel(
 
     fun setListFilter(filter: MarkListFilter) {
         _listFilter.value = filter
+    }
+
+    fun setSearchQuery(value: String) {
+        _searchQuery.value = value
+    }
+
+    fun consumeSaveHint() {
+        _saveHint.value = null
     }
 
     fun refresh(fromPull: Boolean = false) {

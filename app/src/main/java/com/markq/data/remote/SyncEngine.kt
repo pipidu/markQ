@@ -5,6 +5,7 @@ import com.markq.core.MarkEntry
 import com.markq.core.MarkTemplate
 import com.markq.core.SyncErrors
 import com.markq.core.TemplateMerge
+import com.markq.core.TombstoneGc
 import com.markq.data.local.AttachmentDao
 import com.markq.data.local.AttachmentEntity
 import com.markq.data.local.AttachmentStore
@@ -29,6 +30,7 @@ data class SyncUiState(
     val running: Boolean = false,
     val error: String? = null,
     val lastSuccessEpochMs: Long = 0L,
+    val pendingCount: Int = 0,
 )
 
 class SyncEngine(
@@ -52,9 +54,12 @@ class SyncEngine(
 
     suspend fun sync(): Result<Unit> = mutex.withLock {
         val cfg = settings.current()
-        if (!cfg.isConfigured) return Result.success(Unit)
+        if (!cfg.isConfigured) {
+            refreshPending()
+            return Result.success(Unit)
+        }
         val config = cfg.toWebDavConfig()
-        _state.value = _state.value.copy(running = true, error = null)
+        _state.value = _state.value.copy(running = true, error = null, lastSuccessEpochMs = cfg.lastSyncEpochMs)
         try {
             withContext(Dispatchers.IO) {
                 dav.ensureLayout(config)
@@ -62,16 +67,24 @@ class SyncEngine(
                 pullTemplates(config)
                 push(config)
                 pushTemplates(config)
+                gcTombstones(config)
             }
             val now = System.currentTimeMillis()
             settings.setLastSync(now)
-            _state.value = SyncUiState(running = false, error = null, lastSuccessEpochMs = now)
+            val pending = pendingCount()
+            _state.value = SyncUiState(
+                running = false,
+                error = null,
+                lastSuccessEpochMs = now,
+                pendingCount = pending,
+            )
             Result.success(Unit)
         } catch (e: Exception) {
             val silent = (e is WebDavException && e.code == 412) || SyncErrors.isSilent(e)
             _state.value = _state.value.copy(
                 running = false,
                 error = if (silent) null else (e.message ?: e.javaClass.simpleName),
+                pendingCount = pendingCount(),
             )
             if (silent) Result.success(Unit) else Result.failure(e)
         }
@@ -92,7 +105,9 @@ class SyncEngine(
             val remote = json.decodeFromString(RemoteEntry.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
             mergeRemoteEntry(remote, got.etag ?: resource.etag)
             cursors.upsert(SyncCursorEntity(path, got.etag ?: resource.etag, got.lastModified ?: resource.lastModified))
-            pullAttachments(config, remote)
+            if (!remote.deleted) {
+                pullAttachments(config, remote)
+            }
         }
     }
 
@@ -185,7 +200,9 @@ class SyncEngine(
         for (row in entries.getDirty()) {
             try {
                 val model = row.toModel()
-                pushAttachments(config, row)
+                if (!model.deleted) {
+                    pushAttachments(config, row)
+                }
                 val url = dav.entryUrl(config, model.id)
                 val body = json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(model))
                     .toByteArray(Charsets.UTF_8)
@@ -199,6 +216,9 @@ class SyncEngine(
                 val path = WebDavClient.cursorKey(url)
                 entries.markPushed(model.id, dirty = false, etag = etag)
                 cursors.upsert(SyncCursorEntity(path, etag, Instant.now().toString()))
+                if (model.deleted) {
+                    runCatching { dav.deleteCollection(config, dav.filesEntryUrl(config, model.id)) }
+                }
             } catch (e: WebDavException) {
                 if (e.code == 412) continue else throw e
             }
@@ -245,6 +265,57 @@ class SyncEngine(
             if (e.code != 412) throw e
         }
         return dav.put(config, url, retryBytes, contentType, ifMatch = null)
+    }
+
+    suspend fun deleteRemoteFiles(entryId: String) {
+        val cfg = settings.current()
+        if (!cfg.isConfigured) return
+        val config = cfg.toWebDavConfig()
+        withContext(Dispatchers.IO) {
+            runCatching { dav.deleteCollection(config, dav.filesEntryUrl(config, entryId)) }
+        }
+    }
+
+    suspend fun refreshPending() {
+        _state.value = _state.value.copy(pendingCount = pendingCount())
+    }
+
+    private suspend fun pendingCount(): Int =
+        entries.getDirty().size + templates.getDirty().size
+
+    private suspend fun gcTombstones(config: WebDavConfig) {
+        val now = System.currentTimeMillis()
+        for (row in entries.getDeleted()) {
+            if (row.entry.dirty) continue
+            if (!TombstoneGc.isExpired(row.entry.deleted, row.entry.deletedAt, now)) continue
+            val jsonUrl = dav.entryUrl(config, row.entry.id)
+            if (!tryDelete(config, jsonUrl)) continue
+            runCatching { dav.deleteCollection(config, dav.filesEntryUrl(config, row.entry.id)) }
+            cursors.delete(WebDavClient.cursorKey(jsonUrl))
+            val keep = attachments.hashesExceptEntry(row.entry.id).filter { it.isNotBlank() }.toSet()
+            files.deleteEntryFiles(row.entry.id, row.attachments.map { it.sha256 }, keep)
+            attachments.deleteForEntry(row.entry.id)
+            entries.hardDelete(row.entry.id)
+        }
+        for (row in templates.getDeleted()) {
+            if (row.dirty) continue
+            if (!TombstoneGc.isExpired(row.deleted, row.deletedAt, now)) continue
+            val jsonUrl = dav.templateUrl(config, row.id)
+            if (!tryDelete(config, jsonUrl)) continue
+            cursors.delete(WebDavClient.cursorKey(jsonUrl))
+            templates.hardDelete(row.id)
+        }
+    }
+
+    private fun tryDelete(config: WebDavConfig, url: HttpUrl): Boolean {
+        return try {
+            dav.delete(config, url)
+            true
+        } catch (e: WebDavException) {
+            e.code == 404
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private suspend fun pullTemplates(config: WebDavConfig) {

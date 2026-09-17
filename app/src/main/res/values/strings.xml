@@ -29,6 +29,8 @@
     <string name="empty_active_marks">没有未完成的标记。已完成的在「已完成」里。</string>
     <string name="empty_completed">还没有已完成的标记。</string>
     <string name="empty_tag_filter">没有带这个标签的标记。</string>
+    <string name="empty_search">没有匹配的标记。</string>
+    <string name="search_marks">搜索文字、标签或作者</string>
     <string name="tags_label">标签</string>
     <string name="tags_all">全部</string>
     <string name="filter_completed">已完成</string>
@@ -84,6 +86,21 @@
     <string name="share_code">分享码</string>
     <string name="share_code_help">把分享码发给队友，即可一起标记同一 WebDAV 目录。对方仍需填写自己的昵称。</string>
     <string name="copy_share_code">复制分享码</string>
+    <string name="sync_section">同步</string>
+    <string name="background_sync">后台增量同步</string>
+    <string name="background_sync_hint">约每 30 分钟用轻量检查同步（需网络，低电量时暂停）</string>
+    <string name="export_backup">导出备份</string>
+    <string name="exporting_backup">正在导出…</string>
+    <string name="export_ready">已生成备份，请选择保存或分享</string>
+    <string name="export_share_title">导出 MarkQ 备份</string>
+    <string name="error_export_failed">导出备份失败</string>
+    <string name="saved_locally_pending_upload">已保存到本机，待上传</string>
+    <string name="sync_status_running">正在同步…</string>
+    <string name="sync_status_pending">待上传 %1$d</string>
+    <string name="sync_status_last">上次同步 %1$s</string>
+    <string name="sync_status_never">尚未同步</string>
+    <string name="sync_status_error">同步失败</string>
+    <string name="sync_error_title">同步出错</string>
     <string name="version_label">版本 %1$s（%2$d）</string>
     <string name="check_for_updates">检查更新</string>
     <string name="checking_updates">正在检查更新…</string>
@@ -111,6 +128,10 @@
     <string name="error_update_not_apk">下载的文件不是安装包</string>
     <string name="error_update_empty">更新包为空</string>
     <string name="error_update_failed">更新失败</string>
+    <string name="error_update_sha256_mismatch">安装包校验失败：SHA256 与发布页不一致，已取消安装。</string>
+    <string name="error_update_cert_mismatch">安装包签名与当前应用不一致，已取消安装。</string>
+    <string name="error_update_cert_unverified">无法验证安装包签名，已取消安装。</string>
+    <string name="error_update_package_mismatch">安装包不是本应用，已取消安装。</string>
     <string name="error_no_apk_asset">发行版中没有 APK</string>
     <string name="error_no_camera">无法打开相机</string>
 </resources>

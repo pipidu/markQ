@@ -41,6 +41,7 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
@@ -111,23 +112,43 @@ fun HomeScreen(
     val hasCompleted by vm.hasCompleted.collectAsStateWithLifecycle()
     val availableTags by vm.availableTags.collectAsStateWithLifecycle()
     val listFilter by vm.listFilter.collectAsStateWithLifecycle()
+    val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val pulling by vm.pulling.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
+    val pendingCount by vm.pendingCount.collectAsStateWithLifecycle()
+    val lastSyncEpochMs by vm.lastSyncEpochMs.collectAsStateWithLifecycle()
+    val saveHint by vm.saveHint.collectAsStateWithLifecycle()
     val ui = LocalMarkQUiColors.current
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Pair<File, String>?>(null) }
     var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
+    var syncErrorDetail by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(sync.error) {
         val err = sync.error
         if (err != null && !SyncErrors.isSilent(err)) snackbar.showSnackbar(err)
+    }
+    LaunchedEffect(saveHint) {
+        val msg = saveHint ?: return@LaunchedEffect
+        snackbar.showSnackbar(msg)
+        vm.consumeSaveHint()
+    }
+
+    val lastSuccess = maxOf(sync.lastSuccessEpochMs, lastSyncEpochMs)
+    val statusLine = syncStatusLine(sync.running, sync.error, pendingCount, lastSuccess)
+    val statusClick = if (!sync.error.isNullOrBlank() && !SyncErrors.isSilent(sync.error)) {
+        { syncErrorDetail = sync.error }
+    } else {
+        null
     }
 
     Scaffold(
         topBar = {
             CompactTopAppBar(
                 title = stringResource(R.string.app_name),
+                subtitle = statusLine,
+                onSubtitleClick = statusClick,
                 actions = {
                     IconButton(onClick = vm::refresh, enabled = !sync.running) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.sync))
@@ -178,6 +199,15 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = vm::setSearchQuery,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                singleLine = true,
+                label = { Text(stringResource(R.string.search_marks)) },
+            )
             TagFilterRow(
                 tags = availableTags,
                 selected = listFilter,
@@ -198,6 +228,7 @@ fun HomeScreen(
                         Text(
                             when {
                                 sync.running && !hasAnyMarks -> stringResource(R.string.syncing)
+                                searchQuery.isNotBlank() -> stringResource(R.string.empty_search)
                                 listFilter is MarkListFilter.Completed -> stringResource(R.string.empty_completed)
                                 listFilter is MarkListFilter.Tag -> stringResource(R.string.empty_tag_filter)
                                 hasCompleted -> stringResource(R.string.empty_active_marks)
@@ -261,6 +292,20 @@ fun HomeScreen(
         target = mapsTarget,
         onDismiss = { mapsTarget = null },
     )
+
+    val errorDetail = syncErrorDetail
+    if (errorDetail != null) {
+        AlertDialog(
+            onDismissRequest = { syncErrorDetail = null },
+            title = { Text(stringResource(R.string.sync_error_title)) },
+            text = { Text(errorDetail) },
+            confirmButton = {
+                TextButton(onClick = { syncErrorDetail = null }) {
+                    Text(stringResource(R.string.ok))
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -540,6 +585,41 @@ private val dateFmt: DateTimeFormatter =
         .withZone(ZoneId.systemDefault())
 
 fun formatWhen(epochMs: Long): String = dateFmt.format(Instant.ofEpochMilli(epochMs))
+
+@Composable
+private fun syncStatusLine(
+    running: Boolean,
+    error: String?,
+    pendingCount: Int,
+    lastSuccessEpochMs: Long,
+): String {
+    return when {
+        running -> stringResource(R.string.sync_status_running)
+        !error.isNullOrBlank() && !SyncErrors.isSilent(error) -> stringResource(R.string.sync_status_error)
+        pendingCount > 0 -> stringResource(R.string.sync_status_pending, pendingCount)
+        lastSuccessEpochMs > 0L -> stringResource(R.string.sync_status_last, formatLastSync(lastSuccessEpochMs))
+        else -> stringResource(R.string.sync_status_never)
+    }
+}
+
+private val lastSyncFmt: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm")
+        .withLocale(LocaleHelper.appLocale)
+        .withZone(ZoneId.systemDefault())
+
+private val lastSyncDayFmt: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MM-dd HH:mm")
+        .withLocale(LocaleHelper.appLocale)
+        .withZone(ZoneId.systemDefault())
+
+fun formatLastSync(epochMs: Long): String {
+    val then = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
+    return if (then.toLocalDate() == java.time.LocalDate.now()) {
+        lastSyncFmt.format(then)
+    } else {
+        lastSyncDayFmt.format(then)
+    }
+}
 
 @Composable
 private fun TagFilterRow(

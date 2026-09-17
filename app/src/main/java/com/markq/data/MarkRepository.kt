@@ -18,10 +18,15 @@ import com.markq.data.local.toEntity
 import com.markq.data.remote.SyncEngine
 import com.markq.data.remote.SyncUiState
 import com.markq.data.remote.WebDavConfig
+import java.io.File
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 
 class MarkRepository(
     private val db: MarkDatabase,
@@ -34,6 +39,13 @@ class MarkRepository(
     val syncState: StateFlow<SyncUiState> = sync.state
     val entries: Flow<List<EntryWithAttachments>> = db.entries().observeActive()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeActive()
+    val pendingUploadCount: Flow<Int> = combine(
+        db.entries().observeDirtyCount(),
+        db.templates().observeDirtyCount(),
+    ) { entriesDirty, templatesDirty -> entriesDirty + templatesDirty }
+
+    private val _saveHints = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val saveHints: SharedFlow<String> = _saveHints.asSharedFlow()
 
     suspend fun currentSettings(): AppSettings = settings.current()
 
@@ -79,6 +91,12 @@ class MarkRepository(
         )
     }
 
+    suspend fun setBackgroundSync(enabled: Boolean) {
+        settings.setBackgroundSync(enabled)
+    }
+
+    suspend fun exportBackup(): File = BackupExport.write(appContext, db, files)
+
     suspend fun sync() = sync.sync()
 
     suspend fun create(
@@ -117,8 +135,7 @@ class MarkRepository(
         )
         db.entries().upsert(entry.toEntity(dirty = true, remoteEtag = null))
         stored.forEach { db.attachments().upsert(it) }
-        pruneCache()
-        sync.sync()
+        persistThenSync(id)
     }
 
     suspend fun update(
@@ -162,8 +179,7 @@ class MarkRepository(
             db.attachments().deleteMissing(id, all.map { it.id })
             all.forEach { db.attachments().upsert(it) }
         }
-        pruneCache()
-        sync.sync()
+        persistThenSync(id)
     }
 
     suspend fun complete(id: String) {
@@ -205,7 +221,9 @@ class MarkRepository(
             updatedBy = cfg.nickname,
         )
         db.entries().upsert(model.toEntity(dirty = true, remoteEtag = row.entry.remoteEtag))
-        sync.sync()
+        unlinkLocalAttachments(row)
+        runCatching { sync.deleteRemoteFiles(id) }
+        persistThenSync(id, hintIfPending = false)
     }
 
     suspend fun createTemplate(
@@ -313,6 +331,23 @@ class MarkRepository(
     suspend fun pruneCache(keepUpdateApk: Boolean = false) {
         val hashes = db.attachments().allHashes().filter { it.isNotBlank() }.toSet()
         CacheJanitor.prune(appContext, files, hashes, keepUpdateApk)
+    }
+
+    private suspend fun persistThenSync(entryId: String, hintIfPending: Boolean = true) {
+        pruneCache()
+        sync.refreshPending()
+        sync.sync()
+        if (hintIfPending && db.entries().get(entryId)?.entry?.dirty == true) {
+            _saveHints.tryEmit(appContext.getString(R.string.saved_locally_pending_upload))
+        }
+    }
+
+    private suspend fun unlinkLocalAttachments(row: EntryWithAttachments) {
+        val keep = db.attachments().hashesExceptEntry(row.entry.id).filter { it.isNotBlank() }.toSet()
+        files.deleteEntryFiles(row.entry.id, row.attachments.map { it.sha256 }, keep)
+        row.attachments.forEach { att ->
+            db.attachments().upsert(att.copy(localPath = null, dirty = false))
+        }
     }
 
     private fun requireNickname(nickname: String) {

@@ -557,3 +557,51 @@ class DnsWireTest {
         assertTrue(parsed.addresses.isEmpty())
     }
 }
+
+class FileSha256Test {
+    @Test
+    fun hashesFileBytes() {
+        val file = java.io.File.createTempFile("markq", ".bin")
+        file.writeBytes(byteArrayOf(1, 2, 3, 4))
+        val hex = FileSha256.of(file)
+        assertEquals(64, hex.length)
+        assertEquals(FileSha256.of(byteArrayOf(1, 2, 3, 4)), hex)
+        file.delete()
+    }
+
+    @Test
+    fun parsesLabeledAndBareHex() {
+        val hex = "a".repeat(64)
+        assertEquals(hex, FileSha256.parsePublished("SHA256: $hex  MarkQ-1.0.18.apk"))
+        assertEquals(hex, FileSha256.parsePublished("sha-256\n$hex\n"))
+        assertEquals(hex, FileSha256.parsePublished("$hex  MarkQ-1.0.18.apk"))
+        assertEquals(null, FileSha256.parsePublished("no hash here"))
+        assertTrue(FileSha256.matches(hex.uppercase(), hex))
+    }
+}
+
+class TombstoneGcTest {
+    @Test
+    fun expiresAfterThirtyDays() {
+        val now = 1_800_000_000_000L
+        assertFalse(TombstoneGc.isExpired(false, now - TombstoneGc.MAX_AGE_MS, now))
+        assertFalse(TombstoneGc.isExpired(true, null, now))
+        assertFalse(TombstoneGc.isExpired(true, now - TombstoneGc.MAX_AGE_MS + 1, now))
+        assertTrue(TombstoneGc.isExpired(true, now - TombstoneGc.MAX_AGE_MS, now))
+        assertTrue(TombstoneGc.isExpired(true, now - TombstoneGc.MAX_AGE_MS - 1, now))
+    }
+}
+
+class MarkSearchTest {
+    @Test
+    fun matchesTextTagsAndAuthor() {
+        assertTrue(MarkSearch.matches("milk", "buy milk", listOf("shop"), "ann"))
+        assertTrue(MarkSearch.matches("work", "hello", listOf("Work"), "ann"))
+        assertTrue(MarkSearch.matches("ann", "hello", emptyList(), "Ann"))
+        assertTrue(MarkSearch.matches("bob", "hello", emptyList(), "ann", "Bob"))
+        assertTrue(MarkSearch.matches("buy work", "buy milk", listOf("work"), "ann"))
+        assertTrue(MarkSearch.matches("  ", "hello", emptyList(), "ann"))
+        assertFalse(MarkSearch.matches("zzz", "hello", listOf("work"), "ann"))
+        assertFalse(MarkSearch.matches("milk home", "buy milk", listOf("work"), "ann"))
+    }
+}

@@ -34,6 +34,7 @@ data class SettingsForm(
     val downloadBytesPerSec: Long = 0L,
     val downloadIndeterminate: Boolean = false,
     val nicknameError: Boolean = false,
+    val exporting: Boolean = false,
 )
 
 class SettingsViewModel(
@@ -122,6 +123,26 @@ class SettingsViewModel(
 
     fun setFabColor(hex: String) {
         viewModelScope.launch { repo.saveTheme(fabColor = hex) }
+    }
+
+    fun setBackgroundSync(enabled: Boolean) {
+        viewModelScope.launch { repo.setBackgroundSync(enabled) }
+    }
+
+    fun exportBackup(context: android.content.Context) {
+        viewModelScope.launch {
+            _form.update { it.copy(exporting = true, message = null) }
+            runCatching {
+                val zip = repo.exportBackup()
+                com.markq.data.BackupExport.share(context, zip)
+            }.onSuccess {
+                _form.update { it.copy(exporting = false, message = app.getString(R.string.export_ready)) }
+            }.onFailure { err ->
+                _form.update {
+                    it.copy(exporting = false, message = err.message ?: app.getString(R.string.error_export_failed))
+                }
+            }
+        }
     }
 
     fun save() {

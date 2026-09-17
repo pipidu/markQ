@@ -73,6 +73,14 @@ class MarkQApplication : Application(), ImageLoaderFactory {
                 keepUpdateApk = container.updateManager.state.value.readyToInstall,
             )
         }
+        appScope.launch {
+            container.settings.settings.collect { cfg ->
+                com.markq.data.remote.BackgroundSyncScheduler.apply(
+                    this@MarkQApplication,
+                    cfg.backgroundSync && cfg.isConfigured,
+                )
+            }
+        }
     }
 
     override fun newImageLoader(): ImageLoader {

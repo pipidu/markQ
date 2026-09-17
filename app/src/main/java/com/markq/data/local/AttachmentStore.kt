@@ -64,6 +64,15 @@ class AttachmentStore(context: Context) {
         return if (dest.exists()) dest.readBytes() else null
     }
 
+    fun deleteEntryFiles(entryId: String, hashes: Collection<String>, stillUsed: Set<String>) {
+        hashes.forEach { hash ->
+            if (hash.isNotBlank() && hash !in stillUsed) {
+                blob(hash).delete()
+            }
+        }
+        File(root, entryId).deleteRecursively()
+    }
+
     fun prune(keepHashes: Set<String>, maxBytes: Long) {
         val keep = keepHashes.filter { it.isNotBlank() }.toSet()
         blobs.listFiles()?.forEach { file ->

@@ -13,10 +13,10 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 从 GitHub Releases 下载 APK，**不要**从浏览器里找别的安装包：
 
 1. 打开 [Releases](https://github.com/pipidu/markQ/releases/latest)。
-2. 下载资源 **`MarkQ-{版本号}.apk`**（必须是这个文件名，例如 `MarkQ-1.0.8.apk`）。
+2. 下载资源 **`MarkQ-{版本号}.apk`**（必须是这个文件名，例如 `MarkQ-1.0.18.apk`）。发布页会附带该 APK 的 SHA256（说明或 `.sha256` 文件）。
 3. 用系统安装器安装。若提示「未知来源」，允许 MarkQ 安装未知应用后再回来继续。
 
-安装后，应用会在打开时检查 GitHub 上是否有更新（见下文「应用内更新」）。
+安装后，应用会在打开时检查 GitHub 上是否有更新（见下文「应用内更新」）。应用内更新会先核对签名证书（必须与当前已安装的 MarkQ 一致），若发布页提供了 SHA256 也会核对，通过后才调用系统安装器。
 
 ---
 
@@ -50,7 +50,9 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 ## 标记
 
-右下角 **+** 新建。旁边记事本按钮打开**标记模板**：可创建模板，或用模板添加标记。模板可预填文字、颜色、标签；用模板新建时，日期时间仍默认现在。列表里点一张卡片进入**可编辑**的详情（不是只读）：文字、图片、文件、日期时间、颜色、标签。保存后先写本地，再同步到 WebDAV。连点保存只会创建一条。
+右下角 **+** 新建。旁边记事本按钮打开**标记模板**：可创建模板，或用模板添加标记。模板可预填文字、颜色、标签；用模板新建时，日期时间仍默认现在。列表里点一张卡片进入**可编辑**的详情（不是只读）：文字、图片、文件、日期时间、颜色、标签。保存后先写本地，再同步到 WebDAV。若当时还没上传成功，会提示「已保存到本机，待上传」。连点保存只会创建一条。
+
+列表上方可搜索标记文字、标签和作者；筛选仍只作用于当前列表，**全部**里不显示已完成。
 
 每条标记包括：
 
@@ -73,7 +75,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 - **左滑**：删除。会再确认一次。删除后，共用该服务器的所有人都会看到这条被删掉（删除是同步的墓碑，不是只在本机消失）。
 - 轻扫不够长不会触发完成/删除。
 
-顶栏刷新按钮、以及列表**下拉刷新**，都会做一次**增量** WebDAV 同步（不是整库重下）。
+顶栏刷新按钮、以及列表**下拉刷新**，都会做一次**增量** WebDAV 同步（不是整库重下）。顶栏会显示上次成功时间、待上传条数；同步失败可点开看详情。设置里可开关**后台增量同步**（默认开，约每 30 分钟做一次轻量 PROPFIND，低电量时暂停）。设置里也可**导出备份**（entries / files / templates 的 zip，用系统分享保存）。
 
 ### 分类与标签
 
@@ -84,7 +86,8 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 ## 同步与协作
 
 - **本地优先**：创建、修改、完成、删除都先写入本机，再上传。
-- **增量**：打开应用、下拉刷新、顶栏同步，都是先 PROPFIND 条目的 ETag，只有变了或新增的 JSON / 附件才会 GET。不会每次把所有内容重新下完。
+- **增量**：打开应用、下拉刷新、顶栏同步、后台定时同步，都是先 PROPFIND 条目的 ETag，只有变了或新增的 JSON / 附件才会 GET。不会每次把所有内容重新下完。
+- **删除**：删除先写墓碑（`deleted: true`）。删除时会尽量去掉本机附件和 WebDAV 上的 `files/{id}/`。超过 30 天的墓碑会在本机和 WebDAV 上清掉。缺文件本身不是删除信号。
 - **DNS**：应用里所有 HTTP（WebDAV、Nominatim、GitHub 更新、Coil）都走阿里 DNS DoH：`h3://223.5.5.5/dns-query`（HTTP/3）。解析不到 HTTP/3 时，仍向该 IP 用 HTTPS/2 做 DoH，不用系统 DNS。结果按 TTL 缓存。
 - **冲突**：正文、时间、附件、颜色、标签、位置按较新的内容时间合并；完成/删除按较新的状态时间合并。
 - 数据在你的 WebDAV 上大致是：
@@ -121,7 +124,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 来源：[GitHub `releases/latest`](https://api.github.com/repos/pipidu/markQ/releases/latest)，安装包必须叫 `MarkQ-{版本}.apk`。
 
 - 打开应用时会静默检查。没有新版本就什么也不弹。
-- 有新版本时在应用内下载（进度百分比和速度），用系统 PackageInstaller 安装，**不会**跳浏览器下 APK。
+- 有新版本时在应用内下载（进度百分比和速度）。下载后先核对本机签名证书，并在发布页提供 SHA256 时核对哈希；不一致则中文报错并取消安装，**不会**调用 PackageInstaller。
 - 设置里也可以点 **检查更新**。
 - 若系统禁止未知来源，会提示允许 MarkQ 安装未知应用，返回后继续安装。
 - 装完会清掉多余的 APK 缓存。
@@ -140,11 +143,11 @@ MarkQ is a team marking / shared checklist app for Android 8+. Shared data lives
 
 Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the server URL, folder, and credentials; the nickname is still entered locally.
 
-Marks support text, images, files, datetime, location (GPS / last known, default on; address via Nominatim, then Android Geocoder, then coordinates; save still works if permission is denied or geocode times out; tap the address or coords for an in-app 百度/高德 chooser using official lat/lng URIs), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category (chip after the last user tag), not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally.
+Marks support text, images, files, datetime, location (GPS / last known, default on; address via Nominatim, then Android Geocoder, then coordinates; save still works if permission is denied or geocode times out; tap the address or coords for an in-app 百度/高德 chooser using official lat/lng URIs), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. List search covers text, tags, and author. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category (chip after the last user tag), not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally. Settings can export a zip backup and toggle background incremental sync (on by default, about every 30 minutes).
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow. Card borders follow that mark’s color (muted when completed); uncolored cards keep the green theme border and shadow.
 
-Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download + PackageInstaller, no browser).
+Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download, verify signing cert and SHA256 when published, then PackageInstaller; no browser).
 
 HTTP clients resolve DNS via AliDNS DoH over HTTP/3 (`h3://223.5.5.5/dns-query`); if H3 is unavailable they retry DoH over HTTPS/2 to that same IP, never system DNS.
 

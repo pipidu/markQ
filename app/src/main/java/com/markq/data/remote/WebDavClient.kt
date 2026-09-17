@@ -48,6 +48,9 @@ class WebDavClient(
     fun attachmentUrl(config: WebDavConfig, entryId: String, attachId: String): HttpUrl =
         join(config.baseUrl, "files", entryId, attachId)
 
+    fun filesEntryUrl(config: WebDavConfig, entryId: String): HttpUrl =
+        join(config.baseUrl, "files", entryId)
+
     fun probe(config: WebDavConfig) {
         propfind(config, join(config.baseUrl), depth = 0)
     }
@@ -146,6 +149,35 @@ class WebDavClient(
             }
             return normalizeEtag(response.header("ETag"))
         }
+    }
+
+    fun delete(config: WebDavConfig, url: HttpUrl) {
+        val request = authorized(config, Request.Builder().url(url).delete())
+        http.newCall(request).execute().use { response ->
+            when (response.code) {
+                200, 202, 204, 404 -> Unit
+                else -> throw WebDavException("DELETE ${url.encodedPath} failed (${response.code})", response.code)
+            }
+        }
+    }
+
+    fun deleteCollection(config: WebDavConfig, url: HttpUrl) {
+        val listing = try {
+            propfind(config, url, depth = 1)
+        } catch (e: WebDavException) {
+            if (e.code == 404) return else throw e
+        }
+        val selfPath = ensureCollectionUrl(url).encodedPath.trimEnd('/')
+        for (resource in listing) {
+            val path = resource.url.encodedPath.trimEnd('/')
+            if (path.isEmpty() || path == selfPath) continue
+            if (resource.isCollection) {
+                deleteCollection(config, resource.url)
+            } else {
+                delete(config, resource.url)
+            }
+        }
+        delete(config, url)
     }
 
     private fun authorized(config: WebDavConfig, builder: Request.Builder): Request {

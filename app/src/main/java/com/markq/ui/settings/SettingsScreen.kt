@@ -1,6 +1,7 @@
 package com.markq.ui.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,10 +20,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import com.markq.ui.CompactTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -130,6 +133,40 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             Button(onClick = vm::save, enabled = !form.busy, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.save_server))
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(R.string.sync_section), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(stringResource(R.string.background_sync), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.background_sync_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.backgroundSync,
+                    onCheckedChange = vm::setBackgroundSync,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { vm.exportBackup(context) },
+                enabled = !form.busy && !form.exporting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (form.exporting) {
+                        stringResource(R.string.exporting_backup)
+                    } else {
+                        stringResource(R.string.export_backup)
+                    },
+                )
             }
             Spacer(Modifier.height(24.dp))
             Text(stringResource(R.string.share_code), style = MaterialTheme.typography.titleMedium)

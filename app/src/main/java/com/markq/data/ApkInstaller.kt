@@ -29,6 +29,7 @@ object ApkInstaller {
     }
 
     fun install(context: Context, apk: File) {
+        ApkIntegrity.verifyOrThrow(context, apk, expectedSha256 = null)
         val app = context.applicationContext
         val installer = app.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)

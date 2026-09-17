@@ -27,6 +27,7 @@ import okhttp3.Request
 data class GithubRelease(
     @SerialName("tag_name") val tagName: String,
     val name: String? = null,
+    val body: String? = null,
     val assets: List<GithubAsset> = emptyList(),
 )
 
@@ -40,6 +41,7 @@ data class GithubAsset(
 data class UpdateInfo(
     val version: String,
     val apk: File,
+    val expectedSha256: String? = null,
 )
 
 data class UpdateUiState(
@@ -99,7 +101,9 @@ class UpdateChecker(
         }
         onNewerVersion(version)
         val apk = downloadApk(apkUrl, onProgress)
-        UpdateInfo(version = version, apk = apk)
+        val expectedSha256 = publishedSha256(release, version)
+        ApkIntegrity.verifyOrThrow(app, apk, expectedSha256)
+        UpdateInfo(version = version, apk = apk, expectedSha256 = expectedSha256)
     }
 
     private fun downloadApk(apkUrl: String, onProgress: (Long, Long) -> Unit): File {
@@ -138,6 +142,36 @@ class UpdateChecker(
             error(app.getString(R.string.error_update_not_apk))
         }
         return dest
+    }
+
+    private fun publishedSha256(release: GithubRelease, version: String): String? {
+        val asset = release.assets.firstOrNull {
+            it.name.equals("MarkQ-$version.apk.sha256", ignoreCase = true) ||
+                it.name.endsWith(".sha256", ignoreCase = true)
+        }
+        if (asset != null) {
+            val url = asset.browserDownloadUrl.ifBlank {
+                error(app.getString(R.string.error_update_sha256_mismatch))
+            }
+            val text = downloadText(url)
+            return com.markq.core.FileSha256.parsePublished(text)
+                ?: error(app.getString(R.string.error_update_sha256_mismatch))
+        }
+        return com.markq.core.FileSha256.parsePublished(release.body.orEmpty())
+    }
+
+    private fun downloadText(url: String): String {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "MarkQ")
+            .header("Accept", "text/plain,application/octet-stream")
+            .build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                error(app.getString(R.string.error_update_download, response.code))
+            }
+            return response.body?.string().orEmpty()
+        }
     }
 
     companion object {
@@ -269,6 +303,8 @@ class UpdateManager(
         }
         pendingInstall = false
         try {
+            val info = _state.value.info ?: return
+            ApkIntegrity.verifyOrThrow(context, apk, info.expectedSha256)
             ApkInstaller.install(context, apk)
         } catch (e: Exception) {
             _state.update { it.copy(error = e.message ?: app.getString(R.string.error_update_failed)) }

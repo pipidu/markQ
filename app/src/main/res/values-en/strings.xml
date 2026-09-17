@@ -29,6 +29,8 @@
     <string name="empty_active_marks">No open marks. Completed ones are in Completed.</string>
     <string name="empty_completed">No completed marks yet.</string>
     <string name="empty_tag_filter">No marks with this tag.</string>
+    <string name="empty_search">No matching marks.</string>
+    <string name="search_marks">Search text, tags, or author</string>
     <string name="tags_label">Tags</string>
     <string name="tags_all">All</string>
     <string name="filter_completed">Completed</string>
@@ -84,6 +86,21 @@
     <string name="share_code">Share code</string>
     <string name="share_code_help">Send this to teammates so they can join the same WebDAV folder. Recipients must still set their own nickname.</string>
     <string name="copy_share_code">Copy share code</string>
+    <string name="sync_section">Sync</string>
+    <string name="background_sync">Background incremental sync</string>
+    <string name="background_sync_hint">Light check about every 30 minutes (needs network; pauses when battery is low)</string>
+    <string name="export_backup">Export backup</string>
+    <string name="exporting_backup">Exporting…</string>
+    <string name="export_ready">Backup ready. Choose save or share.</string>
+    <string name="export_share_title">Export MarkQ backup</string>
+    <string name="error_export_failed">Could not export backup</string>
+    <string name="saved_locally_pending_upload">Saved on this device, waiting to upload</string>
+    <string name="sync_status_running">Syncing…</string>
+    <string name="sync_status_pending">%1$d waiting to upload</string>
+    <string name="sync_status_last">Last sync %1$s</string>
+    <string name="sync_status_never">Not synced yet</string>
+    <string name="sync_status_error">Sync failed</string>
+    <string name="sync_error_title">Sync error</string>
     <string name="version_label">Version %1$s (%2$d)</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="checking_updates">Checking for updates…</string>
@@ -111,6 +128,10 @@
     <string name="error_update_not_apk">Downloaded file is not an APK</string>
     <string name="error_update_empty">Update package is empty</string>
     <string name="error_update_failed">Update failed</string>
+    <string name="error_update_sha256_mismatch">Package check failed: SHA256 does not match the release. Install cancelled.</string>
+    <string name="error_update_cert_mismatch">Package signature does not match this app. Install cancelled.</string>
+    <string name="error_update_cert_unverified">Could not verify the package signature. Install cancelled.</string>
+    <string name="error_update_package_mismatch">This package is not this app. Install cancelled.</string>
     <string name="error_no_apk_asset">No APK in the GitHub release</string>
     <string name="error_no_camera">Could not open the camera</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.markq.data.local
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +19,7 @@ data class AppSettings(
     val username: String = "",
     val password: String = "",
     val lastSyncEpochMs: Long = 0L,
+    val backgroundSync: Boolean = true,
     val barColor: String = com.markq.core.UiThemeDefaults.BAR,
     val backgroundColor: String = com.markq.core.UiThemeDefaults.BACKGROUND,
     val fabColor: String = com.markq.core.UiThemeDefaults.FAB,
@@ -46,6 +48,7 @@ class SettingsStore(context: Context) {
             username = prefs[USERNAME].orEmpty(),
             password = prefs[PASSWORD].orEmpty(),
             lastSyncEpochMs = prefs[LAST_SYNC] ?: 0L,
+            backgroundSync = prefs[BACKGROUND_SYNC] ?: true,
             barColor = prefs[BAR_COLOR] ?: com.markq.core.UiThemeDefaults.BAR,
             backgroundColor = prefs[BG_COLOR] ?: com.markq.core.UiThemeDefaults.BACKGROUND,
             fabColor = prefs[FAB_COLOR] ?: com.markq.core.UiThemeDefaults.FAB,
@@ -94,6 +97,10 @@ class SettingsStore(context: Context) {
         dataStore.edit { it[LAST_SYNC] = epochMs }
     }
 
+    suspend fun setBackgroundSync(enabled: Boolean) {
+        dataStore.edit { it[BACKGROUND_SYNC] = enabled }
+    }
+
     private companion object {
         val NICKNAME = stringPreferencesKey("nickname")
         val URL = stringPreferencesKey("webdav_url")
@@ -101,6 +108,7 @@ class SettingsStore(context: Context) {
         val USERNAME = stringPreferencesKey("webdav_username")
         val PASSWORD = stringPreferencesKey("webdav_password")
         val LAST_SYNC = longPreferencesKey("last_sync")
+        val BACKGROUND_SYNC = booleanPreferencesKey("background_sync")
         val BAR_COLOR = stringPreferencesKey("theme_bar_color")
         val BG_COLOR = stringPreferencesKey("theme_background_color")
         val FAB_COLOR = stringPreferencesKey("theme_fab_color")
