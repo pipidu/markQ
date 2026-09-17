@@ -31,6 +31,8 @@
     <string name="empty_tag_filter">没有带这个标签的标记。</string>
     <string name="empty_search">没有匹配的标记。</string>
     <string name="search_marks">搜索文字、标签或作者</string>
+    <string name="search_open">搜索</string>
+    <string name="search_close">关闭搜索</string>
     <string name="tags_label">标签</string>
     <string name="tags_all">全部</string>
     <string name="filter_completed">已完成</string>

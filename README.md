@@ -52,7 +52,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 
 右下角 **+** 新建。旁边记事本按钮打开**标记模板**：可创建模板，或用模板添加标记。模板可预填文字、颜色、标签；用模板新建时，日期时间仍默认现在。列表里点一张卡片进入**可编辑**的详情（不是只读）：文字、图片、文件、日期时间、颜色、标签。保存后先写本地，再同步到 WebDAV。若当时还没上传成功，会提示「已保存到本机，待上传」。连点保存只会创建一条。
 
-列表上方可搜索标记文字、标签和作者；筛选仍只作用于当前列表，**全部**里不显示已完成。
+顶栏右侧搜索图标打开搜索框，可搜标记文字、标签和作者；关掉后搜索栏隐藏。筛选仍只作用于当前列表，**全部**里不显示已完成。
 
 每条标记包括：
 
@@ -143,7 +143,7 @@ MarkQ is a team marking / shared checklist app for Android 8+. Shared data lives
 
 Everyone needs a **nickname**. Optional **share codes** (`MQ1_…`) fill in the server URL, folder, and credentials; the nickname is still entered locally.
 
-Marks support text, images, files, datetime, location (GPS / last known, default on; address via Nominatim, then Android Geocoder, then coordinates; save still works if permission is denied or geocode times out; tap the address or coords for an in-app 百度/高德 chooser using official lat/lng URIs), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. List search covers text, tags, and author. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category (chip after the last user tag), not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally. Settings can export a zip backup and toggle background incremental sync (on by default, about every 30 minutes).
+Marks support text, images, files, datetime, location (GPS / last known, default on; address via Nominatim, then Android Geocoder, then coordinates; save still works if permission is denied or geocode times out; tap the address or coords for an in-app 百度/高德 chooser using official lat/lng URIs), a per-entry color, and tags. New images (gallery or camera) can be compressed to WebP (60%, default on) before upload. Camera captures stay in app cache and the temp file is deleted. Tap an image for an in-app pinch-zoom viewer. A notepad button next to + opens templates (preset text, color, tags; datetime still now). Tap a card to edit. Rapid double-tap on Save creates one mark. List search (top-right icon; hidden until tapped) covers text, tags, and author. Swipe right to complete (or uncomplete). Completed marks live only in the Completed category (chip after the last user tag), not in All or tag filters. Swipe left to delete (with confirmation). Pull down to incremental-refresh. Filter the list by tag locally. Settings can export a zip backup and toggle background incremental sync (on by default, about every 30 minutes).
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow. Card borders follow that mark’s color (muted when completed); uncolored cards keep the green theme border and shadow.
 

@@ -30,6 +30,8 @@ class HomeViewModel(
     val listFilter: StateFlow<MarkListFilter> = _listFilter.asStateFlow()
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _searchOpen = MutableStateFlow(false)
+    val searchOpen: StateFlow<Boolean> = _searchOpen.asStateFlow()
     private val _pulling = MutableStateFlow(false)
     val pulling: StateFlow<Boolean> = _pulling.asStateFlow()
     private val _saveHint = MutableStateFlow<String?>(null)
@@ -103,6 +105,15 @@ class HomeViewModel(
 
     fun setSearchQuery(value: String) {
         _searchQuery.value = value
+    }
+
+    fun openSearch() {
+        _searchOpen.value = true
+    }
+
+    fun closeSearch() {
+        _searchOpen.value = false
+        _searchQuery.value = ""
     }
 
     fun consumeSaveHint() {

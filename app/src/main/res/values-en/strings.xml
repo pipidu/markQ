@@ -31,6 +31,8 @@
     <string name="empty_tag_filter">No marks with this tag.</string>
     <string name="empty_search">No matching marks.</string>
     <string name="search_marks">Search text, tags, or author</string>
+    <string name="search_open">Search</string>
+    <string name="search_close">Close search</string>
     <string name="tags_label">Tags</string>
     <string name="tags_all">All</string>
     <string name="filter_completed">Completed</string>

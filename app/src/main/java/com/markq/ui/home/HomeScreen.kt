@@ -25,11 +25,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -61,6 +64,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -97,6 +103,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.abs
+import kotlinx.coroutines.yield
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +120,7 @@ fun HomeScreen(
     val availableTags by vm.availableTags.collectAsStateWithLifecycle()
     val listFilter by vm.listFilter.collectAsStateWithLifecycle()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
+    val searchOpen by vm.searchOpen.collectAsStateWithLifecycle()
     val pulling by vm.pulling.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
     val pendingCount by vm.pendingCount.collectAsStateWithLifecycle()
@@ -124,6 +132,19 @@ fun HomeScreen(
     var viewing by remember { mutableStateOf<Pair<File, String>?>(null) }
     var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
     var syncErrorDetail by remember { mutableStateOf<String?>(null) }
+    val searchFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    BackHandler(enabled = searchOpen) { vm.closeSearch() }
+    LaunchedEffect(searchOpen) {
+        if (searchOpen) {
+            yield()
+            runCatching { searchFocus.requestFocus() }
+            keyboard?.show()
+        } else {
+            keyboard?.hide()
+        }
+    }
 
     LaunchedEffect(sync.error) {
         val err = sync.error
@@ -155,6 +176,15 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                    }
+                    if (searchOpen) {
+                        IconButton(onClick = vm::closeSearch) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.search_close))
+                        }
+                    } else {
+                        IconButton(onClick = vm::openSearch) {
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_open))
+                        }
                     }
                 },
             )
@@ -199,15 +229,23 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = vm::setSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                singleLine = true,
-                label = { Text(stringResource(R.string.search_marks)) },
-            )
+            if (searchOpen) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = vm::setSearchQuery,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .focusRequester(searchFocus),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.search_marks)) },
+                    trailingIcon = {
+                        IconButton(onClick = vm::closeSearch) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.search_close))
+                        }
+                    },
+                )
+            }
             TagFilterRow(
                 tags = availableTags,
                 selected = listFilter,
