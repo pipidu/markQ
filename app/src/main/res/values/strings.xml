@@ -80,6 +80,10 @@
     <string name="template_name">模板名称</string>
     <string name="save_template">保存模板</string>
     <string name="use_template">用此模板添加标记</string>
+    <string name="copy_template_link">复制标记链接</string>
+    <string name="template_link_copied">已复制链接</string>
+    <string name="error_template_link_invalid">链接无效</string>
+    <string name="error_template_link_missing">找不到这个模板。请确认已同步，且链接来自同一 WebDAV。</string>
     <string name="empty_templates">还没有模板。点 + 创建模板，然后就能用它快速添加标记。</string>
     <string name="unnamed_template">未命名模板</string>
     <string name="delete_template_title">删除这个模板？</string>

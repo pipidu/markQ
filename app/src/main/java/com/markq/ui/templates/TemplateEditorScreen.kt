@@ -30,12 +30,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markq.R
+import com.markq.core.MarkQLink
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.EntryColorPicker
@@ -48,6 +54,8 @@ fun TemplateEditorScreen(
     vm: TemplateEditorViewModel = appViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
     LaunchedEffect(templateId) { vm.load(templateId) }
     LaunchedEffect(state.saved) {
         if (state.saved) onDone()
@@ -152,6 +160,23 @@ fun TemplateEditorScreen(
                 Text(
                     if (state.busy) stringResource(R.string.saving) else stringResource(R.string.save_template),
                 )
+            }
+            val existingId = state.templateId
+            if (!existingId.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString(MarkQLink.templateUri(existingId)))
+                        copied = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.copy_template_link))
+                }
+                if (copied) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.template_link_copied))
+                }
             }
         }
     }

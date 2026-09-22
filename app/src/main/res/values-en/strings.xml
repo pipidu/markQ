@@ -80,6 +80,10 @@
     <string name="template_name">Template name</string>
     <string name="save_template">Save template</string>
     <string name="use_template">Add a mark from this template</string>
+    <string name="copy_template_link">Copy mark link</string>
+    <string name="template_link_copied">Link copied</string>
+    <string name="error_template_link_invalid">This link is not valid</string>
+    <string name="error_template_link_missing">This template was not found. Sync first, and use a link from the same WebDAV folder.</string>
     <string name="empty_templates">No templates yet. Tap + to create one, then use it to add marks.</string>
     <string name="unnamed_template">Untitled template</string>
     <string name="delete_template_title">Delete this template?</string>

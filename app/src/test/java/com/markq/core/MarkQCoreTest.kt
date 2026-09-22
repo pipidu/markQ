@@ -46,6 +46,30 @@ class ShareCodeTest {
     }
 }
 
+class MarkQLinkTest {
+    @Test
+    fun roundTripTemplateId() {
+        val id = "550e8400-e29b-41d4-a716-446655440000"
+        val uri = MarkQLink.templateUri(id)
+        assertEquals("markq://template/$id", uri)
+        assertEquals(id, MarkQLink.parseTemplateId(uri))
+        assertEquals(id, MarkQLink.parseTemplateId("  $uri  "))
+        assertEquals(id, MarkQLink.parseTemplateId("MARKQ://TEMPLATE/$id"))
+        assertEquals(id, MarkQLink.parseTemplateId("$uri/"))
+    }
+
+    @Test
+    fun rejectsInvalidLinks() {
+        assertEquals(null, MarkQLink.parseTemplateId(null))
+        assertEquals(null, MarkQLink.parseTemplateId(""))
+        assertEquals(null, MarkQLink.parseTemplateId("https://example.com/template/a"))
+        assertEquals(null, MarkQLink.parseTemplateId("markq://other/a"))
+        assertEquals(null, MarkQLink.parseTemplateId("markq://template/"))
+        assertEquals(null, MarkQLink.parseTemplateId("markq://template"))
+        assertEquals(null, MarkQLink.parseTemplateId("mq1://template/a"))
+    }
+}
+
 class NutstoreDavTest {
     @Test
     fun joinsDefaultFolder() {

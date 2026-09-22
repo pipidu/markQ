@@ -1,19 +1,20 @@
 package com.markq
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -43,18 +44,25 @@ import com.markq.ui.setup.SetupScreen
 import com.markq.ui.templates.TemplateEditorScreen
 import com.markq.ui.templates.TemplateListScreen
 import com.markq.ui.theme.MarkQTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
+    private val incomingIntents = MutableStateFlow(0 to (null as Intent?))
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingIntents.value = 1 to intent
         enableEdgeToEdge()
         setContent {
             val main: MainViewModel = appViewModel()
             val settings by main.settings.collectAsStateWithLifecycle()
+            val incoming by incomingIntents.collectAsStateWithLifecycle()
+            val openTemplateId by main.openTemplateId.collectAsStateWithLifecycle()
+            val linkError by main.linkError.collectAsStateWithLifecycle()
             MarkQTheme(
                 barHex = settings.barColor,
                 backgroundHex = settings.backgroundColor,
@@ -66,11 +74,32 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 val start = if (settings.isConfigured) "home" else "setup"
 
-                LaunchedEffect(settings.isConfigured) {
-                    val dest = if (settings.isConfigured) "home" else "setup"
+                LaunchedEffect(incoming.first) {
+                    main.handleIntent(incoming.second)
+                }
+
+                LaunchedEffect(settings.isConfigured, openTemplateId) {
+                    if (!settings.isConfigured) {
+                        val current = nav.currentDestination?.route
+                        if (current != "setup") {
+                            nav.navigate("setup") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                        return@LaunchedEffect
+                    }
+                    val templateId = openTemplateId
+                    if (templateId != null) {
+                        nav.navigate("home") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                        nav.navigate("fromTemplate/$templateId")
+                        main.onOpenedTemplateLink()
+                        return@LaunchedEffect
+                    }
                     val current = nav.currentDestination?.route
-                    if (current != dest && (current == "setup" || current == "home" || current == null)) {
-                        nav.navigate(dest) {
+                    if (current == "setup" || current == null) {
+                        nav.navigate("home") {
                             popUpTo(0) { inclusive = true }
                         }
                     }
@@ -80,6 +109,11 @@ class MainActivity : ComponentActivity() {
                     val msg = update.error ?: return@LaunchedEffect
                     snackbar.showSnackbar(msg)
                     main.consumeUpdateMessage()
+                }
+                LaunchedEffect(linkError) {
+                    val msg = linkError ?: return@LaunchedEffect
+                    snackbar.showSnackbar(msg)
+                    main.consumeLinkError()
                 }
 
                 Scaffold(
@@ -203,6 +237,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingIntents.value = incomingIntents.value.first + 1 to intent
     }
 
     override fun onResume() {
