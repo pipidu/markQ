@@ -129,6 +129,10 @@ class SettingsViewModel(
         viewModelScope.launch { repo.setBackgroundSync(enabled) }
     }
 
+    fun setGithubUpdateMirror(enabled: Boolean) {
+        viewModelScope.launch { repo.setGithubUpdateMirror(enabled) }
+    }
+
     fun exportBackup(context: android.content.Context) {
         viewModelScope.launch {
             _form.update { it.copy(exporting = true, message = null) }

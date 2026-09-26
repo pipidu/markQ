@@ -128,6 +128,7 @@ Android 上的团队标记 / 共用清单。数据存在**你自己的 WebDAV** 
 - 打开应用时会静默检查。没有新版本就什么也不弹。
 - 有新版本时在应用内下载（进度百分比和速度）。下载后先核对本机签名证书，并在发布页提供 SHA256 时核对哈希；不一致则中文报错并取消安装，**不会**调用 PackageInstaller。
 - 设置里也可以点 **检查更新**。
+- 设置里 **通过镜像下载更新** 默认开启：按 [GH Proxy](https://gh.4o.pw/docs) 把 GitHub HTTPS 地址接到 `https://gh.4o.pw/` 后面再下载（含 Releases API 和安装包）。关掉则直连 `api.github.com` / `github.com`。
 - 若系统禁止未知来源，会提示允许 MarkQ 安装未知应用，返回后继续安装。
 - 装完会清掉多余的 APK 缓存。
 
@@ -149,7 +150,7 @@ Marks support text, images, files, datetime, location (GPS / last known, default
 
 Theme (top bar, background, + button) is stored on the device. Defaults: green bar `#0B6E4F`, white background, white + button with shadow. Card borders follow that mark’s color (muted when completed); uncolored cards keep the green theme border and shadow.
 
-Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download, verify signing cert and SHA256 when published, then PackageInstaller; no browser).
+Install `MarkQ-{version}.apk` from [Releases](https://github.com/pipidu/markQ/releases/latest). The app also updates from GitHub Releases in-app (download, verify signing cert and SHA256 when published, then PackageInstaller; no browser). Settings can download those APKs via GH Proxy (`https://gh.4o.pw/` + original GitHub HTTPS URL); that option is on by default.
 
 HTTP clients resolve DNS via AliDNS DoH over HTTP/3 (`h3://223.5.5.5/dns-query`); if H3 is unavailable they retry DoH over HTTPS/2 to that same IP, never system DNS.
 

@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import com.markq.BuildConfig
 import com.markq.R
+import com.markq.core.GithubMirror
 import com.markq.core.SemVer
+import com.markq.data.local.SettingsStore
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,7 @@ data class UpdateUiState(
 class UpdateChecker(
     private val http: OkHttpClient,
     private val app: Application,
+    private val settings: SettingsStore,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -77,7 +80,11 @@ class UpdateChecker(
         onNewerVersion: (String) -> Unit = {},
         onProgress: (bytes: Long, total: Long) -> Unit = { _, _ -> },
     ): UpdateInfo? = withContext(Dispatchers.IO) {
-        val metaUrl = "https://api.github.com/repos/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/latest"
+        val useMirror = settings.current().githubUpdateMirror
+        val metaUrl = GithubMirror.rewrite(
+            "https://api.github.com/repos/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/latest",
+            useMirror,
+        )
         val request = Request.Builder()
             .url(metaUrl)
             .header("Accept", "application/vnd.github+json")
@@ -96,12 +103,15 @@ class UpdateChecker(
         val asset = release.assets.firstOrNull {
             it.name.equals("MarkQ-$version.apk", ignoreCase = true) || it.name.endsWith(".apk", ignoreCase = true)
         } ?: error(app.getString(R.string.error_no_apk_asset))
-        val apkUrl = asset.browserDownloadUrl.ifBlank {
-            "https://github.com/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/download/$tag/MarkQ-$version.apk"
-        }
+        val apkUrl = GithubMirror.rewrite(
+            asset.browserDownloadUrl.ifBlank {
+                "https://github.com/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/download/$tag/MarkQ-$version.apk"
+            },
+            useMirror,
+        )
         onNewerVersion(version)
         val apk = downloadApk(apkUrl, onProgress)
-        val expectedSha256 = publishedSha256(release, version)
+        val expectedSha256 = publishedSha256(release, version, useMirror)
         ApkIntegrity.verifyOrThrow(app, apk, expectedSha256)
         UpdateInfo(version = version, apk = apk, expectedSha256 = expectedSha256)
     }
@@ -144,15 +154,18 @@ class UpdateChecker(
         return dest
     }
 
-    private fun publishedSha256(release: GithubRelease, version: String): String? {
+    private fun publishedSha256(release: GithubRelease, version: String, useMirror: Boolean): String? {
         val asset = release.assets.firstOrNull {
             it.name.equals("MarkQ-$version.apk.sha256", ignoreCase = true) ||
                 it.name.endsWith(".sha256", ignoreCase = true)
         }
         if (asset != null) {
-            val url = asset.browserDownloadUrl.ifBlank {
-                error(app.getString(R.string.error_update_sha256_mismatch))
-            }
+            val url = GithubMirror.rewrite(
+                asset.browserDownloadUrl.ifBlank {
+                    error(app.getString(R.string.error_update_sha256_mismatch))
+                },
+                useMirror,
+            )
             val text = downloadText(url)
             return com.markq.core.FileSha256.parsePublished(text)
                 ?: error(app.getString(R.string.error_update_sha256_mismatch))

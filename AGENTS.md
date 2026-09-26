@@ -27,7 +27,7 @@ MarkQ is a team marking / shared checklist Android app. Shared data lives on the
 - Every user action must sync to other users: create, complete, delete.
 - App open uses incremental sync only (never a full content re-download).
 - Local-first: write locally, then sync. Merges must be conflict-safe when two users change the same entry.
-- Auto-update from GitHub Releases (see below).
+- Auto-update from GitHub Releases (see below). Settings can download update APKs via GH Proxy (`https://gh.4o.pw/` + original GitHub HTTPS URL); that option is on by default. Unchecked uses github.com / api.github.com directly.
 - All app HTTP clients (WebDAV, Nominatim, GitHub updates, Coil) resolve DNS through AliDNS DoH over HTTP/3 at `h3://223.5.5.5/dns-query`. System DNS is not used for those lookups. If HTTP/3 is unavailable, DoH retries over HTTPS/2 to the same IP. Answers are cached by TTL.
 
 ## Versioning
@@ -57,7 +57,7 @@ After every push to `main`:
    - Title: `MarkQ {versionName}`
    - Asset filename: `MarkQ-{versionName}.apk` (must match this pattern)
 
-In-app update source: `https://api.github.com/repos/pipidu/markQ/releases/latest`
+In-app update source: `https://api.github.com/repos/pipidu/markQ/releases/latest`. When the settings mirror toggle is on (default), rewrite that lookup and GitHub release asset download URLs as `https://gh.4o.pw/` + original HTTPS URL. Unchecked uses github.com / api.github.com directly. Signing cert + SHA256 checks still run after download.
 
 ## Sync format (WebDAV)
 

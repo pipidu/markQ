@@ -108,6 +108,8 @@
     <string name="sync_status_error">Sync failed</string>
     <string name="sync_error_title">Sync error</string>
     <string name="version_label">Version %1$s (%2$d)</string>
+    <string name="github_update_mirror">Download updates via GitHub mirror</string>
+    <string name="github_update_mirror_hint">Fetch GitHub update APKs through gh.4o.pw. On by default; turn off to use github.com directly.</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="checking_updates">Checking for updates…</string>
     <string name="downloading_update">Downloading update…</string>

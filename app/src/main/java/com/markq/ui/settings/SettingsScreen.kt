@@ -186,6 +186,25 @@ fun SettingsScreen(
                 stringResource(R.string.version_label, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(stringResource(R.string.github_update_mirror), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.github_update_mirror_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.githubUpdateMirror,
+                    onCheckedChange = vm::setGithubUpdateMirror,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 onClick = vm::checkUpdate,
                 enabled = !form.checkingUpdate,

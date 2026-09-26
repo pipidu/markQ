@@ -95,6 +95,10 @@ class MarkRepository(
         settings.setBackgroundSync(enabled)
     }
 
+    suspend fun setGithubUpdateMirror(enabled: Boolean) {
+        settings.setGithubUpdateMirror(enabled)
+    }
+
     suspend fun exportBackup(): File = BackupExport.write(appContext, db, files)
 
     suspend fun sync() = sync.sync()

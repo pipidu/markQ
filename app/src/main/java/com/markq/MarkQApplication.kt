@@ -51,7 +51,7 @@ class AppContainer(app: Application) {
     val places = PlaceNameResolver(app, nominatim)
     val sync = SyncEngine(dav, db.entries(), db.attachments(), db.templates(), db.cursors(), files, settings)
     val repository = MarkRepository(db, settings, files, sync, app)
-    val updateChecker = UpdateChecker(http, app)
+    val updateChecker = UpdateChecker(http, app, settings)
     val updateManager = UpdateManager(updateChecker, app)
 }
 

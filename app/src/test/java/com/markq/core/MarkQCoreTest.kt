@@ -629,3 +629,59 @@ class MarkSearchTest {
         assertFalse(MarkSearch.matches("milk home", "buy milk", listOf("work"), "ann"))
     }
 }
+
+class GithubMirrorTest {
+    @Test
+    fun prefixesFullGithubHttpsUrl() {
+        val src = "https://github.com/pipidu/markQ/releases/download/v1.0.21/MarkQ-1.0.21.apk"
+        assertEquals(
+            "https://gh.4o.pw/https://github.com/pipidu/markQ/releases/download/v1.0.21/MarkQ-1.0.21.apk",
+            GithubMirror.rewrite(src, enabled = true),
+        )
+    }
+
+    @Test
+    fun prefixesApiGithubComForReleaseLookup() {
+        val src = "https://api.github.com/repos/pipidu/markQ/releases/latest"
+        assertEquals(
+            "https://gh.4o.pw/https://api.github.com/repos/pipidu/markQ/releases/latest",
+            GithubMirror.rewrite(src, enabled = true),
+        )
+    }
+
+    @Test
+    fun prefixesGithubusercontent() {
+        val src = "https://objects.githubusercontent.com/github-production-release-asset-2e65be/file"
+        assertEquals(
+            "https://gh.4o.pw/$src",
+            GithubMirror.rewrite(src, enabled = true),
+        )
+    }
+
+    @Test
+    fun leavesUrlUnchangedWhenDisabled() {
+        val src = "https://github.com/pipidu/markQ/releases/download/v1.0.21/MarkQ-1.0.21.apk"
+        assertEquals(src, GithubMirror.rewrite(src, enabled = false))
+    }
+
+    @Test
+    fun doesNotDoublePrefix() {
+        val already = "https://gh.4o.pw/https://github.com/pipidu/markQ/releases/download/v1.0.21/MarkQ-1.0.21.apk"
+        assertEquals(already, GithubMirror.rewrite(already, enabled = true))
+    }
+
+    @Test
+    fun rejectsNonGithubHosts() {
+        val src = "https://example.com/MarkQ-1.0.21.apk"
+        assertEquals(src, GithubMirror.rewrite(src, enabled = true))
+    }
+
+    @Test
+    fun allowsGithubSubdomains() {
+        assertTrue(GithubMirror.isAllowedHost("api.github.com"))
+        assertTrue(GithubMirror.isAllowedHost("github.com"))
+        assertTrue(GithubMirror.isAllowedHost("raw.githubusercontent.com"))
+        assertFalse(GithubMirror.isAllowedHost("evil.com"))
+        assertFalse(GithubMirror.isAllowedHost("notgithub.com"))
+    }
+}
