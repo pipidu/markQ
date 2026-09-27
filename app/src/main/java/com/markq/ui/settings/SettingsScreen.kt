@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markq.BuildConfig
 import com.markq.R
+import com.markq.core.MarkQLink
 import com.markq.ui.appViewModel
 import com.markq.ui.theme.ThemeColorPicker
 
@@ -194,7 +195,7 @@ fun SettingsScreen(
                 onValueChange = vm::setLinkBaseUrl,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.link_base_url)) },
-                placeholder = { Text("https://") },
+                placeholder = { Text(MarkQLink.DEFAULT_LINK_BASE) },
                 singleLine = true,
             )
             Spacer(Modifier.height(24.dp))

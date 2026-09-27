@@ -9,6 +9,7 @@ object MarkQLink {
     const val SCHEME = "markq"
     const val HOST_TEMPLATE = "template"
     const val WEB_PATH_PREFIX = "/t/"
+    const val DEFAULT_LINK_BASE = "https://markq-openx.4o.pw"
 
     fun templateUri(id: String): String {
         val clean = id.trim()
@@ -35,7 +36,11 @@ object MarkQLink {
     }
 
     fun webTemplateUrl(base: String, id: String): String? {
-        val origin = normalizeLinkBase(base) ?: return null
+        val origin = if (base.isBlank()) {
+            DEFAULT_LINK_BASE
+        } else {
+            normalizeLinkBase(base) ?: return null
+        }
         val clean = id.trim()
         if (clean.isEmpty()) return null
         return "$origin$WEB_PATH_PREFIX${pathEncode(clean)}"

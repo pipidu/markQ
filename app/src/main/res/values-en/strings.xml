@@ -94,8 +94,8 @@
     <string name="copy_share_code">Copy share code</string>
     <string name="link_base_section">Open-link domain</string>
     <string name="link_base_url">Open-link domain</string>
-    <string name="link_base_hint">The hostname you bind to the Cloudflare Worker (no path). Copying a template link uses {domain}/t/{id} so NFC can store an https URL.</string>
-    <string name="error_template_link_base_unset">Set the open-link domain in Settings before copying.</string>
+    <string name="link_base_hint">Default https://markq-openx.4o.pw. Copying a template link uses {domain}/t/{id} for NFC. You can change this if you bound a different hostname (no path).</string>
+    <string name="error_template_link_base_unset">Open-link domain is not valid</string>
     <string name="sync_section">Sync</string>
     <string name="background_sync">Background incremental sync</string>
     <string name="background_sync_hint">Light check about every 30 minutes (needs network; pauses when battery is low)</string>

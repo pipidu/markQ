@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.R
+import com.markq.core.MarkQLink
 import com.markq.core.NutstoreDav
 import com.markq.core.ShareCode
 import com.markq.data.MarkRepository
@@ -25,7 +26,7 @@ data class SettingsForm(
     val username: String = "",
     val password: String = "",
     val shareCode: String = "",
-    val linkBaseUrl: String = "",
+    val linkBaseUrl: String = MarkQLink.DEFAULT_LINK_BASE,
     val busy: Boolean = false,
     val message: String? = null,
     val update: UpdateInfo? = null,
@@ -72,7 +73,7 @@ class SettingsViewModel(
                             username = cfg.username,
                             password = cfg.password,
                             shareCode = ShareCode.encode(url, cfg.username, cfg.password, dir),
-                            linkBaseUrl = cfg.linkBaseUrl,
+                            linkBaseUrl = cfg.linkBaseUrl.ifBlank { MarkQLink.DEFAULT_LINK_BASE },
                         )
                     }
                 }

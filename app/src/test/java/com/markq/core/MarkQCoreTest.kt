@@ -88,8 +88,15 @@ class MarkQLinkTest {
             "https://open.example:8443/t/$id",
             MarkQLink.webTemplateUrl("https://open.example:8443/", id),
         )
-        assertEquals(null, MarkQLink.webTemplateUrl("", id))
-        assertEquals(null, MarkQLink.webTemplateUrl("   ", id))
+        assertEquals(
+            "${MarkQLink.DEFAULT_LINK_BASE}/t/$id",
+            MarkQLink.webTemplateUrl("", id),
+        )
+        assertEquals(
+            "${MarkQLink.DEFAULT_LINK_BASE}/t/$id",
+            MarkQLink.webTemplateUrl("   ", id),
+        )
+        assertEquals("https://markq-openx.4o.pw", MarkQLink.DEFAULT_LINK_BASE)
         assertEquals("https://open.example", MarkQLink.normalizeLinkBase("https://open.example/"))
     }
 }

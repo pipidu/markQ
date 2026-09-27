@@ -21,7 +21,7 @@ data class AppSettings(
     val lastSyncEpochMs: Long = 0L,
     val backgroundSync: Boolean = true,
     val githubUpdateMirror: Boolean = true,
-    val linkBaseUrl: String = "",
+    val linkBaseUrl: String = com.markq.core.MarkQLink.DEFAULT_LINK_BASE,
     val barColor: String = com.markq.core.UiThemeDefaults.BAR,
     val backgroundColor: String = com.markq.core.UiThemeDefaults.BACKGROUND,
     val fabColor: String = com.markq.core.UiThemeDefaults.FAB,
@@ -52,7 +52,8 @@ class SettingsStore(context: Context) {
             lastSyncEpochMs = prefs[LAST_SYNC] ?: 0L,
             backgroundSync = prefs[BACKGROUND_SYNC] ?: true,
             githubUpdateMirror = prefs[GITHUB_UPDATE_MIRROR] ?: true,
-            linkBaseUrl = prefs[LINK_BASE_URL].orEmpty(),
+            linkBaseUrl = prefs[LINK_BASE_URL]?.trim()?.takeIf { it.isNotEmpty() }
+                ?: com.markq.core.MarkQLink.DEFAULT_LINK_BASE,
             barColor = prefs[BAR_COLOR] ?: com.markq.core.UiThemeDefaults.BAR,
             backgroundColor = prefs[BG_COLOR] ?: com.markq.core.UiThemeDefaults.BACKGROUND,
             fabColor = prefs[FAB_COLOR] ?: com.markq.core.UiThemeDefaults.FAB,
