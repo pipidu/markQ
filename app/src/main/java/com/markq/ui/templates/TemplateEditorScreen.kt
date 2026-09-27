@@ -54,8 +54,9 @@ fun TemplateEditorScreen(
     vm: TemplateEditorViewModel = appViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
+    var copyMessage by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(templateId) { vm.load(templateId) }
     LaunchedEffect(state.saved) {
         if (state.saved) onDone()
@@ -166,16 +167,29 @@ fun TemplateEditorScreen(
                 Spacer(Modifier.height(12.dp))
                 OutlinedButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(MarkQLink.templateUri(existingId)))
-                        copied = true
+                        val url = MarkQLink.webTemplateUrl(settings.linkBaseUrl, existingId)
+                        if (url == null) {
+                            copyMessage = R.string.error_template_link_base_unset
+                        } else {
+                            clipboard.setText(AnnotatedString(url))
+                            copyMessage = R.string.template_link_copied
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.copy_template_link))
                 }
-                if (copied) {
+                val copiedRes = copyMessage
+                if (copiedRes != null) {
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.template_link_copied))
+                    Text(
+                        stringResource(copiedRes),
+                        color = if (copiedRes == R.string.error_template_link_base_unset) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onBackground
+                        },
+                    )
                 }
             }
         }

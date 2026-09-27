@@ -8,11 +8,37 @@ import java.nio.charset.StandardCharsets
 object MarkQLink {
     const val SCHEME = "markq"
     const val HOST_TEMPLATE = "template"
+    const val WEB_PATH_PREFIX = "/t/"
 
     fun templateUri(id: String): String {
         val clean = id.trim()
         require(clean.isNotEmpty()) { "template id" }
         return "$SCHEME://$HOST_TEMPLATE/${pathEncode(clean)}"
+    }
+
+    /** Origin only: scheme + host + optional port. No path. */
+    fun normalizeLinkBase(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
+        val uri = try {
+            URI(withScheme)
+        } catch (_: Exception) {
+            return null
+        }
+        val scheme = uri.scheme?.lowercase() ?: return null
+        if (scheme != "http" && scheme != "https") return null
+        val host = uri.host?.trim()?.trim('.') ?: return null
+        if (host.isEmpty()) return null
+        val port = if (uri.port > 0) ":${uri.port}" else ""
+        return "$scheme://$host$port"
+    }
+
+    fun webTemplateUrl(base: String, id: String): String? {
+        val origin = normalizeLinkBase(base) ?: return null
+        val clean = id.trim()
+        if (clean.isEmpty()) return null
+        return "$origin$WEB_PATH_PREFIX${pathEncode(clean)}"
     }
 
     fun parseTemplateId(raw: String?): String? {

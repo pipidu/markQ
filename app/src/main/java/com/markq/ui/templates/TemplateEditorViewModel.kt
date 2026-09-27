@@ -6,9 +6,12 @@ import com.markq.core.MarkColor
 import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
 import com.markq.data.MarkRepository
+import com.markq.data.local.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -28,6 +31,11 @@ data class TemplateEditorUiState(
 class TemplateEditorViewModel(
     private val repo: MarkRepository,
 ) : ViewModel() {
+    val settings: StateFlow<AppSettings> = repo.settingsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        AppSettings(),
+    )
     private val _state = MutableStateFlow(TemplateEditorUiState())
     val state: StateFlow<TemplateEditorUiState> = _state.asStateFlow()
 

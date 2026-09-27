@@ -68,6 +68,30 @@ class MarkQLinkTest {
         assertEquals(null, MarkQLink.parseTemplateId("markq://template"))
         assertEquals(null, MarkQLink.parseTemplateId("mq1://template/a"))
     }
+
+    @Test
+    fun buildsHttpsTemplateUrlFromBase() {
+        val id = "550e8400-e29b-41d4-a716-446655440000"
+        assertEquals(
+            "https://open.example/t/$id",
+            MarkQLink.webTemplateUrl("https://open.example", id),
+        )
+        assertEquals(
+            "https://open.example/t/$id",
+            MarkQLink.webTemplateUrl("open.example/", id),
+        )
+        assertEquals(
+            "https://open.example/t/$id",
+            MarkQLink.webTemplateUrl("https://open.example/extra", id),
+        )
+        assertEquals(
+            "https://open.example:8443/t/$id",
+            MarkQLink.webTemplateUrl("https://open.example:8443/", id),
+        )
+        assertEquals(null, MarkQLink.webTemplateUrl("", id))
+        assertEquals(null, MarkQLink.webTemplateUrl("   ", id))
+        assertEquals("https://open.example", MarkQLink.normalizeLinkBase("https://open.example/"))
+    }
 }
 
 class NutstoreDavTest {

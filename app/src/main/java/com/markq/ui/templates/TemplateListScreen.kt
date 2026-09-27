@@ -74,11 +74,13 @@ fun TemplateListScreen(
     vm: TemplateListViewModel = appViewModel(),
 ) {
     val templates by vm.templates.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     val ui = LocalMarkQUiColors.current
     val clipboard = LocalClipboardManager.current
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val copiedMsg = stringResource(R.string.template_link_copied)
+    val unsetMsg = stringResource(R.string.error_template_link_base_unset)
     var pendingDelete by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -134,8 +136,13 @@ fun TemplateListScreen(
                         row = row,
                         onUse = { onUse(row.id) },
                         onCopyLink = {
-                            clipboard.setText(AnnotatedString(MarkQLink.templateUri(row.id)))
-                            scope.launch { snackbar.showSnackbar(copiedMsg) }
+                            val url = MarkQLink.webTemplateUrl(settings.linkBaseUrl, row.id)
+                            if (url == null) {
+                                scope.launch { snackbar.showSnackbar(unsetMsg) }
+                            } else {
+                                clipboard.setText(AnnotatedString(url))
+                                scope.launch { snackbar.showSnackbar(copiedMsg) }
+                            }
                         },
                         onEdit = { onEdit(row.id) },
                         onDelete = { pendingDelete = row.id },

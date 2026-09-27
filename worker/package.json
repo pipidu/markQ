@@ -1,0 +1,10 @@
+{
+  "name": "markq-open",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "node test.mjs"
+  }
+}

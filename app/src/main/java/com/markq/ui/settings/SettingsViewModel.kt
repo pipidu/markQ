@@ -25,6 +25,7 @@ data class SettingsForm(
     val username: String = "",
     val password: String = "",
     val shareCode: String = "",
+    val linkBaseUrl: String = "",
     val busy: Boolean = false,
     val message: String? = null,
     val update: UpdateInfo? = null,
@@ -71,6 +72,7 @@ class SettingsViewModel(
                             username = cfg.username,
                             password = cfg.password,
                             shareCode = ShareCode.encode(url, cfg.username, cfg.password, dir),
+                            linkBaseUrl = cfg.linkBaseUrl,
                         )
                     }
                 }
@@ -131,6 +133,11 @@ class SettingsViewModel(
 
     fun setGithubUpdateMirror(enabled: Boolean) {
         viewModelScope.launch { repo.setGithubUpdateMirror(enabled) }
+    }
+
+    fun setLinkBaseUrl(value: String) {
+        _form.update { it.copy(linkBaseUrl = value) }
+        viewModelScope.launch { repo.setLinkBaseUrl(value) }
     }
 
     fun exportBackup(context: android.content.Context) {

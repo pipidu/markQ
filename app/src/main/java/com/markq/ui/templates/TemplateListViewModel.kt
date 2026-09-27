@@ -3,6 +3,7 @@ package com.markq.ui.templates
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.data.MarkRepository
+import com.markq.data.local.AppSettings
 import com.markq.data.local.TemplateEntity
 import com.markq.data.remote.SyncUiState
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +18,11 @@ class TemplateListViewModel(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
+    )
+    val settings: StateFlow<AppSettings> = repo.settingsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        AppSettings(),
     )
     val syncState: StateFlow<SyncUiState> = repo.syncState
 

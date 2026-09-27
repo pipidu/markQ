@@ -182,6 +182,22 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.copy_share_code)) }
             Spacer(Modifier.height(24.dp))
+            Text(stringResource(R.string.link_base_section), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.link_base_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = form.linkBaseUrl,
+                onValueChange = vm::setLinkBaseUrl,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.link_base_url)) },
+                placeholder = { Text("https://") },
+                singleLine = true,
+            )
+            Spacer(Modifier.height(24.dp))
             Text(
                 stringResource(R.string.version_label, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
                 style = MaterialTheme.typography.bodyMedium,

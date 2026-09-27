@@ -99,6 +99,10 @@ class MarkRepository(
         settings.setGithubUpdateMirror(enabled)
     }
 
+    suspend fun setLinkBaseUrl(value: String) {
+        settings.setLinkBaseUrl(value)
+    }
+
     suspend fun exportBackup(): File = BackupExport.write(appContext, db, files)
 
     suspend fun sync() = sync.sync()

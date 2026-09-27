@@ -1,0 +1,6 @@
+name = "markq-open"
+main = "src/index.js"
+compatibility_date = "2026-09-27"
+
+# Bind your own hostname in the Cloudflare dashboard after deploy.
+# Do not put a production domain in this file.
