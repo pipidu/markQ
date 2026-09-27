@@ -81,7 +81,10 @@
     <string name="save_template">保存模板</string>
     <string name="use_template">用此模板添加标记</string>
     <string name="copy_template_link">复制标记链接</string>
-    <string name="template_link_open_camera">打开后直接拍照</string>
+    <string name="template_link_open_mode">打开方式</string>
+    <string name="template_link_open_edit">打开编辑</string>
+    <string name="template_link_open_camera">直接拍照并保存</string>
+    <string name="template_link_open_save">直接保存</string>
     <string name="template_link_copied">已复制链接</string>
     <string name="error_template_link_invalid">链接无效</string>
     <string name="error_template_link_missing">找不到这个模板。请确认已同步，且链接来自同一 WebDAV。</string>

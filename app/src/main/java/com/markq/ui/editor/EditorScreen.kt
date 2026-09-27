@@ -83,8 +83,9 @@ fun EditorScreen(
     entryId: String? = null,
     templateId: String? = null,
     openCamera: Boolean = false,
+    openSave: Boolean = false,
     onDone: () -> Unit,
-    onSavedFromCamera: (String) -> Unit = {},
+    onSavedFromLink: (String) -> Unit = {},
     vm: EditorViewModel = appViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -95,6 +96,7 @@ fun EditorScreen(
     var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
     var cameraLinkStarted by remember { mutableStateOf(false) }
+    var saveLinkStarted by remember { mutableStateOf(false) }
 
     LaunchedEffect(entryId, templateId) { vm.load(entryId, templateId) }
 
@@ -105,8 +107,8 @@ fun EditorScreen(
     LaunchedEffect(state.saved) {
         if (!state.saved) return@LaunchedEffect
         val savedId = state.entryId
-        if (openCamera && !savedId.isNullOrBlank()) {
-            onSavedFromCamera(savedId)
+        if ((openCamera || openSave) && !savedId.isNullOrBlank()) {
+            onSavedFromLink(savedId)
         } else {
             onDone()
         }
@@ -179,6 +181,13 @@ fun EditorScreen(
         if (openCamera && state.loaded && !cameraLinkStarted && !state.saved && !state.busy) {
             cameraLinkStarted = true
             launchCamera()
+        }
+    }
+
+    LaunchedEffect(state.loaded, openSave, openCamera) {
+        if (openSave && !openCamera && state.loaded && !saveLinkStarted && !state.saved && !state.busy) {
+            saveLinkStarted = true
+            vm.save()
         }
     }
 

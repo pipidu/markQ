@@ -44,8 +44,8 @@ if (!html.includes("https://github.com/pipidu/markQ/releases/latest")) {
   console.error("fail apk link");
   failed += 1;
 }
-if (html.includes("?camera=1")) {
-  console.error("fail camera query must be opt-in");
+if (html.includes("?camera=1") || html.includes("?save=1")) {
+  console.error("fail camera/save query must be opt-in");
   failed += 1;
 }
 
@@ -59,8 +59,40 @@ if (
   console.error("fail camera query passthrough");
   failed += 1;
 }
-if (camHtml.includes("browser_fallback_url")) {
-  console.error("fail camera page must not set browser_fallback_url");
+if (camHtml.includes("browser_fallback_url") || camHtml.includes("?save=1")) {
+  console.error("fail camera page must not set browser_fallback_url or save");
+  failed += 1;
+}
+
+const savePage = await worker.fetch(new Request(`https://example.test/t/${id}?save=1`));
+const saveHtml = await savePage.text();
+if (
+  savePage.status !== 200 ||
+  !saveHtml.includes("intent://template/" + id + "?save=1") ||
+  !saveHtml.includes("markq://template/" + id + "?save=1")
+) {
+  console.error("fail save query passthrough");
+  failed += 1;
+}
+if (saveHtml.includes("browser_fallback_url") || saveHtml.includes("?camera=1")) {
+  console.error("fail save page must not set browser_fallback_url or camera");
+  failed += 1;
+}
+
+const bothPage = await worker.fetch(
+  new Request(`https://example.test/t/${id}?save=1&camera=1`),
+);
+const bothHtml = await bothPage.text();
+if (
+  !bothHtml.includes("intent://template/" + id + "?camera=1") ||
+  !bothHtml.includes("markq://template/" + id + "?camera=1") ||
+  bothHtml.includes("?save=1")
+) {
+  console.error("fail camera must win when both params are present");
+  failed += 1;
+}
+if (bothHtml.includes("browser_fallback_url")) {
+  console.error("fail both-params page must not set browser_fallback_url");
   failed += 1;
 }
 

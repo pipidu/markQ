@@ -16,6 +16,13 @@ export function templateIdFromPath(pathname) {
   return id;
 }
 
+export function openQuery(url) {
+  const params = url instanceof URL ? url.searchParams : new URL(String(url)).searchParams;
+  if (params.get("camera") === "1") return "?camera=1";
+  if (params.get("save") === "1") return "?save=1";
+  return "";
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -26,8 +33,7 @@ export default {
     if (!id) {
       return plain("页面不存在。", 404);
     }
-    const camera = url.searchParams.get("camera") === "1";
-    return new Response(openPage(id, camera), {
+    return new Response(openPage(id, openQuery(url)), {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store",
@@ -43,8 +49,7 @@ function plain(body, status) {
   });
 }
 
-function openPage(id, camera) {
-  const query = camera ? "?camera=1" : "";
+function openPage(id, query) {
   const custom = "markq://template/" + id + query;
   const intent =
     "intent://template/" +

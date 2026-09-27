@@ -35,6 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.markq.core.ByteFormat
+import com.markq.core.MarkQLink
 import com.markq.ui.MainViewModel
 import com.markq.ui.appViewModel
 import com.markq.ui.editor.EditorScreen
@@ -62,7 +63,7 @@ class MainActivity : ComponentActivity() {
             val settings by main.settings.collectAsStateWithLifecycle()
             val incoming by incomingIntents.collectAsStateWithLifecycle()
             val openTemplateId by main.openTemplateId.collectAsStateWithLifecycle()
-            val openTemplateCamera by main.openTemplateCamera.collectAsStateWithLifecycle()
+            val openTemplateMode by main.openTemplateMode.collectAsStateWithLifecycle()
             val linkError by main.linkError.collectAsStateWithLifecycle()
             MarkQTheme(
                 barHex = settings.barColor,
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     main.handleIntent(incoming.second)
                 }
 
-                LaunchedEffect(settings.isConfigured, openTemplateId, openTemplateCamera) {
+                LaunchedEffect(settings.isConfigured, openTemplateId, openTemplateMode) {
                     if (!settings.isConfigured) {
                         val current = nav.currentDestination?.route
                         if (current != "setup") {
@@ -94,10 +95,10 @@ class MainActivity : ComponentActivity() {
                         nav.navigate("home") {
                             popUpTo(0) { inclusive = true }
                         }
-                        val dest = if (openTemplateCamera) {
-                            "fromTemplate/$templateId?camera=1"
-                        } else {
-                            "fromTemplate/$templateId"
+                        val dest = when (openTemplateMode) {
+                            MarkQLink.OpenMode.Camera -> "fromTemplate/$templateId?camera=1"
+                            MarkQLink.OpenMode.Save -> "fromTemplate/$templateId?save=1"
+                            MarkQLink.OpenMode.Edit -> "fromTemplate/$templateId"
                         }
                         nav.navigate(dest)
                         main.onOpenedTemplateLink()
@@ -170,10 +171,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(
-                            route = "fromTemplate/{templateId}?camera={camera}",
+                            route = "fromTemplate/{templateId}?camera={camera}&save={save}",
                             arguments = listOf(
                                 navArgument("templateId") { type = NavType.StringType },
                                 navArgument("camera") {
+                                    type = NavType.StringType
+                                    defaultValue = "0"
+                                },
+                                navArgument("save") {
                                     type = NavType.StringType
                                     defaultValue = "0"
                                 },
@@ -181,11 +186,13 @@ class MainActivity : ComponentActivity() {
                         ) { back ->
                             val id = back.arguments?.getString("templateId")
                             val openCamera = back.arguments?.getString("camera") == "1"
+                            val openSave = !openCamera && back.arguments?.getString("save") == "1"
                             EditorScreen(
                                 templateId = id,
                                 openCamera = openCamera,
+                                openSave = openSave,
                                 onDone = { nav.popBackStack() },
-                                onSavedFromCamera = { entryId ->
+                                onSavedFromLink = { entryId ->
                                     nav.navigate("editor?entryId=$entryId") {
                                         popUpTo("home")
                                     }

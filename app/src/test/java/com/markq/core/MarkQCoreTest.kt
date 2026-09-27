@@ -100,14 +100,45 @@ class MarkQLinkTest {
         assertEquals("https://open.example", MarkQLink.normalizeLinkBase("https://open.example/"))
         assertEquals(
             "${MarkQLink.DEFAULT_LINK_BASE}/t/$id?camera=1",
-            MarkQLink.webTemplateUrl("", id, openCamera = true),
+            MarkQLink.webTemplateUrl("", id, MarkQLink.OpenMode.Camera),
         )
-        assertEquals("markq://template/$id?camera=1", MarkQLink.templateUri(id, openCamera = true))
+        assertEquals(
+            "${MarkQLink.DEFAULT_LINK_BASE}/t/$id?save=1",
+            MarkQLink.webTemplateUrl("", id, MarkQLink.OpenMode.Save),
+        )
+        assertEquals("markq://template/$id?camera=1", MarkQLink.templateUri(id, MarkQLink.OpenMode.Camera))
+        assertEquals("markq://template/$id?save=1", MarkQLink.templateUri(id, MarkQLink.OpenMode.Save))
+        assertEquals(MarkQLink.OpenMode.Edit, MarkQLink.parseOpenMode(MarkQLink.templateUri(id)))
+        assertEquals(
+            MarkQLink.OpenMode.Camera,
+            MarkQLink.parseOpenMode(MarkQLink.templateUri(id, MarkQLink.OpenMode.Camera)),
+        )
+        assertEquals(
+            MarkQLink.OpenMode.Save,
+            MarkQLink.parseOpenMode(MarkQLink.templateUri(id, MarkQLink.OpenMode.Save)),
+        )
         assertFalse(MarkQLink.parseOpenCamera(MarkQLink.templateUri(id)))
-        assertTrue(MarkQLink.parseOpenCamera(MarkQLink.templateUri(id, openCamera = true)))
+        assertTrue(MarkQLink.parseOpenCamera(MarkQLink.templateUri(id, MarkQLink.OpenMode.Camera)))
         assertTrue(MarkQLink.parseOpenCamera("${MarkQLink.DEFAULT_LINK_BASE}/t/$id?camera=1"))
         assertFalse(MarkQLink.parseOpenCamera("${MarkQLink.DEFAULT_LINK_BASE}/t/$id"))
+        assertFalse(MarkQLink.parseOpenSave(MarkQLink.templateUri(id)))
+        assertTrue(MarkQLink.parseOpenSave(MarkQLink.templateUri(id, MarkQLink.OpenMode.Save)))
+        assertTrue(MarkQLink.parseOpenSave("${MarkQLink.DEFAULT_LINK_BASE}/t/$id?save=1"))
+        assertFalse(MarkQLink.parseOpenSave("${MarkQLink.DEFAULT_LINK_BASE}/t/$id"))
         assertEquals(id, MarkQLink.parseTemplateId("markq://template/$id?camera=1"))
+        assertEquals(id, MarkQLink.parseTemplateId("markq://template/$id?save=1"))
+        assertEquals(
+            MarkQLink.OpenMode.Camera,
+            MarkQLink.parseOpenMode("markq://template/$id?save=1&camera=1"),
+        )
+        assertEquals(
+            MarkQLink.OpenMode.Camera,
+            MarkQLink.parseOpenMode("${MarkQLink.DEFAULT_LINK_BASE}/t/$id?camera=1&save=1"),
+        )
+        assertEquals(
+            MarkQLink.OpenMode.Save,
+            MarkQLink.parseOpenMode("${MarkQLink.DEFAULT_LINK_BASE}/t/$id?save=1"),
+        )
     }
 }
 

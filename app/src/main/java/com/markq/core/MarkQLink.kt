@@ -11,11 +11,23 @@ object MarkQLink {
     const val WEB_PATH_PREFIX = "/t/"
     const val DEFAULT_LINK_BASE = "https://markq-openx.4o.pw"
 
-    fun templateUri(id: String, openCamera: Boolean = false): String {
+    enum class OpenMode {
+        Edit,
+        Camera,
+        Save,
+        ;
+
+        fun query(): String = when (this) {
+            Edit -> ""
+            Camera -> "?camera=1"
+            Save -> "?save=1"
+        }
+    }
+
+    fun templateUri(id: String, mode: OpenMode = OpenMode.Edit): String {
         val clean = id.trim()
         require(clean.isNotEmpty()) { "template id" }
-        val uri = "$SCHEME://$HOST_TEMPLATE/${pathEncode(clean)}"
-        return if (openCamera) "$uri?camera=1" else uri
+        return "$SCHEME://$HOST_TEMPLATE/${pathEncode(clean)}${mode.query()}"
     }
 
     /** Origin only: scheme + host + optional port. No path. */
@@ -36,7 +48,7 @@ object MarkQLink {
         return "$scheme://$host$port"
     }
 
-    fun webTemplateUrl(base: String, id: String, openCamera: Boolean = false): String? {
+    fun webTemplateUrl(base: String, id: String, mode: OpenMode = OpenMode.Edit): String? {
         val origin = if (base.isBlank()) {
             DEFAULT_LINK_BASE
         } else {
@@ -44,24 +56,17 @@ object MarkQLink {
         }
         val clean = id.trim()
         if (clean.isEmpty()) return null
-        val url = "$origin$WEB_PATH_PREFIX${pathEncode(clean)}"
-        return if (openCamera) "$url?camera=1" else url
+        return "$origin$WEB_PATH_PREFIX${pathEncode(clean)}${mode.query()}"
     }
 
-    fun parseOpenCamera(raw: String?): Boolean {
-        val text = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return false
-        val query = try {
-            URI(text).query
-        } catch (_: Exception) {
-            null
-        } ?: text.substringAfter('?', "").substringBefore('#')
-        if (query.isBlank()) return false
-        return query.split("&").any { part ->
-            val key = part.substringBefore('=')
-            val value = part.substringAfter('=', "1")
-            key.equals("camera", ignoreCase = true) &&
-                (value.isEmpty() || value == "1" || value.equals("true", ignoreCase = true))
-        }
+    fun parseOpenCamera(raw: String?): Boolean = queryFlag(raw, "camera")
+
+    fun parseOpenSave(raw: String?): Boolean = queryFlag(raw, "save")
+
+    fun parseOpenMode(raw: String?): OpenMode {
+        if (parseOpenCamera(raw)) return OpenMode.Camera
+        if (parseOpenSave(raw)) return OpenMode.Save
+        return OpenMode.Edit
     }
 
     fun parseTemplateId(raw: String?): String? {
@@ -90,6 +95,22 @@ object MarkQLink {
         }
         if (id.isNullOrBlank()) return null
         return pathDecode(id).takeIf { it.isNotBlank() }
+    }
+
+    private fun queryFlag(raw: String?, name: String): Boolean {
+        val text = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+        val query = try {
+            URI(text).query
+        } catch (_: Exception) {
+            null
+        } ?: text.substringAfter('?', "").substringBefore('#')
+        if (query.isBlank()) return false
+        return query.split("&").any { part ->
+            val key = part.substringBefore('=')
+            val value = part.substringAfter('=', "1")
+            key.equals(name, ignoreCase = true) &&
+                (value.isEmpty() || value == "1" || value.equals("true", ignoreCase = true))
+        }
     }
 
     private fun pathEncode(value: String): String =

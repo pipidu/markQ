@@ -8,7 +8,11 @@ NFC cannot store a `markq://` link reliably. This Worker serves an https page th
 
 Optional direct camera: `{你绑定的域名}/t/{templateId}?camera=1`
 
-On load the page immediately `location.replace`s an Android `intent://` URL with scheme `markq` and package `com.markq.app` (and `?camera=1` on the intent and `markq://` URLs when that query is present). It does **not** set `browser_fallback_url`. If the page is still visible, it then tries `markq://template/{id}`.
+Optional direct save: `{你绑定的域名}/t/{templateId}?save=1`
+
+If both `camera=1` and `save=1` are present, camera wins.
+
+On load the page immediately `location.replace`s an Android `intent://` URL with scheme `markq` and package `com.markq.app` (and `?camera=1` or `?save=1` on the intent and `markq://` URLs when that query is present). It does **not** set `browser_fallback_url`. If the page is still visible, it then tries `markq://template/{id}`.
 
 If MarkQ is not installed, the same page stays (Chinese fallback) with a link to the latest GitHub release APK.
 

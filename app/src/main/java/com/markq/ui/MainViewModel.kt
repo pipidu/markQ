@@ -35,15 +35,15 @@ class MainViewModel(
     private val _openTemplateId = MutableStateFlow<String?>(null)
     val openTemplateId: StateFlow<String?> = _openTemplateId.asStateFlow()
 
-    private val _openTemplateCamera = MutableStateFlow(false)
-    val openTemplateCamera: StateFlow<Boolean> = _openTemplateCamera.asStateFlow()
+    private val _openTemplateMode = MutableStateFlow(MarkQLink.OpenMode.Edit)
+    val openTemplateMode: StateFlow<MarkQLink.OpenMode> = _openTemplateMode.asStateFlow()
 
     private val _linkError = MutableStateFlow<String?>(null)
     val linkError: StateFlow<String?> = _linkError.asStateFlow()
 
     private val mutex = Mutex()
     private var pendingTemplateId: String? = null
-    private var pendingOpenCamera = false
+    private var pendingOpenMode = MarkQLink.OpenMode.Edit
     private var lastIntentIdentity: Int? = null
 
     init {
@@ -68,13 +68,13 @@ class MainViewModel(
             return
         }
         pendingTemplateId = id
-        pendingOpenCamera = MarkQLink.parseOpenCamera(data)
+        pendingOpenMode = MarkQLink.parseOpenMode(data)
         viewModelScope.launch { resolvePending() }
     }
 
     fun onOpenedTemplateLink() {
         _openTemplateId.value = null
-        _openTemplateCamera.value = false
+        _openTemplateMode.value = MarkQLink.OpenMode.Edit
     }
 
     fun consumeLinkError() {
@@ -104,14 +104,14 @@ class MainViewModel(
         }
         if (row == null || row.deleted) {
             pendingTemplateId = null
-            pendingOpenCamera = false
+            pendingOpenMode = MarkQLink.OpenMode.Edit
             _linkError.value = app.getString(R.string.error_template_link_missing)
             return
         }
-        val camera = pendingOpenCamera
+        val mode = pendingOpenMode
         pendingTemplateId = null
-        pendingOpenCamera = false
-        _openTemplateCamera.value = camera
+        pendingOpenMode = MarkQLink.OpenMode.Edit
+        _openTemplateMode.value = mode
         _openTemplateId.value = id
     }
 }

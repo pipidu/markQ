@@ -81,7 +81,10 @@
     <string name="save_template">Save template</string>
     <string name="use_template">Add a mark from this template</string>
     <string name="copy_template_link">Copy mark link</string>
-    <string name="template_link_open_camera">Open camera after launch</string>
+    <string name="template_link_open_mode">Open mode</string>
+    <string name="template_link_open_edit">Open editor</string>
+    <string name="template_link_open_camera">Take photo and save</string>
+    <string name="template_link_open_save">Save immediately</string>
     <string name="template_link_copied">Link copied</string>
     <string name="error_template_link_invalid">This link is not valid</string>
     <string name="error_template_link_missing">This template was not found. Sync first, and use a link from the same WebDAV folder.</string>
