@@ -32,6 +32,14 @@ if (!html.includes("package=com.markq.app") || !html.includes("scheme=markq")) {
   console.error("fail intent extras");
   failed += 1;
 }
+if (html.includes("browser_fallback_url") || html.includes("stay=1")) {
+  console.error("fail auto-open must not fall back to this page");
+  failed += 1;
+}
+if (!html.includes("location.replace")) {
+  console.error("fail missing immediate redirect");
+  failed += 1;
+}
 if (!html.includes("https://github.com/pipidu/markQ/releases/latest")) {
   console.error("fail apk link");
   failed += 1;

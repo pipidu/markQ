@@ -44,6 +44,12 @@ function plain(body, status) {
 
 function openPage(id) {
   const custom = "markq://template/" + id;
+  const intent =
+    "intent://template/" +
+    id +
+    "#Intent;scheme=markq;package=" +
+    PACKAGE_ID +
+    ";end";
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -54,25 +60,24 @@ function openPage(id) {
 body{font-family:sans-serif;margin:1.5rem;line-height:1.5;color:#111}
 a{color:#0B6E4F}
 </style>
+<script>location.replace(${JSON.stringify(intent)});</script>
 </head>
 <body>
 <p>正在打开 MarkQ…</p>
 <p>未安装 MarkQ？请先安装，然后再打开这个链接。</p>
 <p><a href="${LATEST_RELEASE}">下载最新安装包（APK）</a></p>
-<p><a id="open" href="${custom}">打开 MarkQ</a></p>
+<p><a id="open" href="${intent}">打开 MarkQ</a></p>
 <script>
 (function(){
-  var id = ${JSON.stringify(id)};
-  var custom = "markq://template/" + id;
-  var stay = new URLSearchParams(location.search).get("stay") === "1";
-  var fallback = location.origin + location.pathname + "?stay=1";
-  var intent = "intent://template/" + id +
-    "#Intent;scheme=markq;package=${PACKAGE_ID};S.browser_fallback_url=" +
-    encodeURIComponent(fallback) + ";end";
-  document.getElementById("open").href = stay ? custom : intent;
-  if (stay) return;
-  location.href = intent;
-  setTimeout(function(){ location.href = custom; }, 400);
+  var intent = ${JSON.stringify(intent)};
+  var custom = ${JSON.stringify(custom)};
+  var a = document.getElementById("open");
+  a.href = intent;
+  try { a.click(); } catch (e) {}
+  setTimeout(function(){
+    if (document.hidden || document.webkitHidden) return;
+    location.href = custom;
+  }, 700);
 })();
 </script>
 </body>

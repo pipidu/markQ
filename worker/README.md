@@ -8,10 +8,7 @@ NFC cannot store a `markq://` link reliably. This Worker serves an https page th
 
 Example: `https://your-domain.example/t/550e8400-e29b-41d4-a716-446655440000`
 
-On load the page tries:
-
-1. Android `intent://template/{id}#Intent;scheme=markq;package=com.markq.app;…;end`
-2. then `markq://template/{id}`
+On load the page immediately `location.replace`s an Android `intent://` URL with scheme `markq` and package `com.markq.app`, and does **not** set `browser_fallback_url` (a same-page fallback cancels the open). If the page is still visible, it then tries `markq://template/{id}`.
 
 If MarkQ is not installed, the same page stays (Chinese fallback) with a link to the latest GitHub release APK.
 
