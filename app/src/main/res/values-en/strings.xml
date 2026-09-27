@@ -81,7 +81,7 @@
     <string name="save_template">Save template</string>
     <string name="use_template">Add a mark from this template</string>
     <string name="copy_template_link">Copy mark link</string>
-    <string name="template_link_open_mode">Open mode</string>
+    <string name="template_link_open_mode">Link open mode</string>
     <string name="template_link_open_edit">Open editor</string>
     <string name="template_link_open_camera">Take photo and save</string>
     <string name="template_link_open_save">Save immediately</string>
