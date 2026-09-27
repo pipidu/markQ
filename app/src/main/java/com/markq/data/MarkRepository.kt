@@ -116,7 +116,7 @@ class MarkRepository(
         latitude: Double? = null,
         longitude: Double? = null,
         placeName: String? = null,
-    ) {
+    ): String {
         val cfg = settings.current()
         requireNickname(cfg.nickname)
         val now = Instant.now()
@@ -144,6 +144,7 @@ class MarkRepository(
         db.entries().upsert(entry.toEntity(dirty = true, remoteEtag = null))
         stored.forEach { db.attachments().upsert(it) }
         persistThenSync(id)
+        return id
     }
 
     suspend fun update(

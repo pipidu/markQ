@@ -98,6 +98,16 @@ class MarkQLinkTest {
         )
         assertEquals("https://markq-openx.4o.pw", MarkQLink.DEFAULT_LINK_BASE)
         assertEquals("https://open.example", MarkQLink.normalizeLinkBase("https://open.example/"))
+        assertEquals(
+            "${MarkQLink.DEFAULT_LINK_BASE}/t/$id?camera=1",
+            MarkQLink.webTemplateUrl("", id, openCamera = true),
+        )
+        assertEquals("markq://template/$id?camera=1", MarkQLink.templateUri(id, openCamera = true))
+        assertFalse(MarkQLink.parseOpenCamera(MarkQLink.templateUri(id)))
+        assertTrue(MarkQLink.parseOpenCamera(MarkQLink.templateUri(id, openCamera = true)))
+        assertTrue(MarkQLink.parseOpenCamera("${MarkQLink.DEFAULT_LINK_BASE}/t/$id?camera=1"))
+        assertFalse(MarkQLink.parseOpenCamera("${MarkQLink.DEFAULT_LINK_BASE}/t/$id"))
+        assertEquals(id, MarkQLink.parseTemplateId("markq://template/$id?camera=1"))
     }
 }
 

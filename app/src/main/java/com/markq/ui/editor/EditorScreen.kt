@@ -82,7 +82,9 @@ import androidx.core.content.FileProvider
 fun EditorScreen(
     entryId: String? = null,
     templateId: String? = null,
+    openCamera: Boolean = false,
     onDone: () -> Unit,
+    onSavedFromCamera: (String) -> Unit = {},
     vm: EditorViewModel = appViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -92,6 +94,7 @@ fun EditorScreen(
     var viewing by remember { mutableStateOf<DraftAttachment?>(null) }
     var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     var mapsTarget by remember { mutableStateOf<MapsNavTarget?>(null) }
+    var cameraLinkStarted by remember { mutableStateOf(false) }
 
     LaunchedEffect(entryId, templateId) { vm.load(entryId, templateId) }
 
@@ -100,7 +103,13 @@ fun EditorScreen(
     }
 
     LaunchedEffect(state.saved) {
-        if (state.saved) onDone()
+        if (!state.saved) return@LaunchedEffect
+        val savedId = state.entryId
+        if (openCamera && !savedId.isNullOrBlank()) {
+            onSavedFromCamera(savedId)
+        } else {
+            onDone()
+        }
     }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -146,10 +155,11 @@ fun EditorScreen(
                 CaptureUris.revoke(context, uri)
             }
         }
-        if (success && file != null) {
-            vm.addCameraCapture(context, file)
+        if (success && file != null && vm.addCameraCapture(context, file)) {
+            if (openCamera) vm.save()
         } else {
             CaptureUris.deleteQuietly(file)
+            if (openCamera) onDone()
         }
     }
 
@@ -161,6 +171,14 @@ fun EditorScreen(
             CaptureUris.deleteQuietly(file)
             pendingCapturePath = null
             vm.showError(context.getString(R.string.error_no_camera))
+            if (openCamera) onDone()
+        }
+    }
+
+    LaunchedEffect(state.loaded, openCamera) {
+        if (openCamera && state.loaded && !cameraLinkStarted && !state.saved && !state.busy) {
+            cameraLinkStarted = true
+            launchCamera()
         }
     }
 

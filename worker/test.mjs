@@ -44,6 +44,25 @@ if (!html.includes("https://github.com/pipidu/markQ/releases/latest")) {
   console.error("fail apk link");
   failed += 1;
 }
+if (html.includes("?camera=1")) {
+  console.error("fail camera query must be opt-in");
+  failed += 1;
+}
+
+const camPage = await worker.fetch(new Request(`https://example.test/t/${id}?camera=1`));
+const camHtml = await camPage.text();
+if (
+  camPage.status !== 200 ||
+  !camHtml.includes("intent://template/" + id + "?camera=1") ||
+  !camHtml.includes("markq://template/" + id + "?camera=1")
+) {
+  console.error("fail camera query passthrough");
+  failed += 1;
+}
+if (camHtml.includes("browser_fallback_url")) {
+  console.error("fail camera page must not set browser_fallback_url");
+  failed += 1;
+}
 
 const missing = await worker.fetch(new Request("https://example.test/t/nope"));
 if (missing.status !== 404) {

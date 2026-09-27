@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
             val settings by main.settings.collectAsStateWithLifecycle()
             val incoming by incomingIntents.collectAsStateWithLifecycle()
             val openTemplateId by main.openTemplateId.collectAsStateWithLifecycle()
+            val openTemplateCamera by main.openTemplateCamera.collectAsStateWithLifecycle()
             val linkError by main.linkError.collectAsStateWithLifecycle()
             MarkQTheme(
                 barHex = settings.barColor,
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
                     main.handleIntent(incoming.second)
                 }
 
-                LaunchedEffect(settings.isConfigured, openTemplateId) {
+                LaunchedEffect(settings.isConfigured, openTemplateId, openTemplateCamera) {
                     if (!settings.isConfigured) {
                         val current = nav.currentDestination?.route
                         if (current != "setup") {
@@ -93,7 +94,12 @@ class MainActivity : ComponentActivity() {
                         nav.navigate("home") {
                             popUpTo(0) { inclusive = true }
                         }
-                        nav.navigate("fromTemplate/$templateId")
+                        val dest = if (openTemplateCamera) {
+                            "fromTemplate/$templateId?camera=1"
+                        } else {
+                            "fromTemplate/$templateId"
+                        }
+                        nav.navigate(dest)
                         main.onOpenedTemplateLink()
                         return@LaunchedEffect
                     }
@@ -164,12 +170,26 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(
-                            route = "fromTemplate/{templateId}",
-                            arguments = listOf(navArgument("templateId") { type = NavType.StringType }),
+                            route = "fromTemplate/{templateId}?camera={camera}",
+                            arguments = listOf(
+                                navArgument("templateId") { type = NavType.StringType },
+                                navArgument("camera") {
+                                    type = NavType.StringType
+                                    defaultValue = "0"
+                                },
+                            ),
                         ) { back ->
+                            val id = back.arguments?.getString("templateId")
+                            val openCamera = back.arguments?.getString("camera") == "1"
                             EditorScreen(
-                                templateId = back.arguments?.getString("templateId"),
+                                templateId = id,
+                                openCamera = openCamera,
                                 onDone = { nav.popBackStack() },
+                                onSavedFromCamera = { entryId ->
+                                    nav.navigate("editor?entryId=$entryId") {
+                                        popUpTo("home")
+                                    }
+                                },
                             )
                         }
                         composable(

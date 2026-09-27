@@ -26,7 +26,8 @@ export default {
     if (!id) {
       return plain("页面不存在。", 404);
     }
-    return new Response(openPage(id), {
+    const camera = url.searchParams.get("camera") === "1";
+    return new Response(openPage(id, camera), {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store",
@@ -42,11 +43,13 @@ function plain(body, status) {
   });
 }
 
-function openPage(id) {
-  const custom = "markq://template/" + id;
+function openPage(id, camera) {
+  const query = camera ? "?camera=1" : "";
+  const custom = "markq://template/" + id + query;
   const intent =
     "intent://template/" +
     id +
+    query +
     "#Intent;scheme=markq;package=" +
     PACKAGE_ID +
     ";end";

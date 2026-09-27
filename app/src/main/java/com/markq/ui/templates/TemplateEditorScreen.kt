@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
@@ -57,6 +59,7 @@ fun TemplateEditorScreen(
     val settings by vm.settings.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var copyMessage by remember { mutableStateOf<Int?>(null) }
+    var openCamera by remember { mutableStateOf(false) }
     LaunchedEffect(templateId) { vm.load(templateId) }
     LaunchedEffect(state.saved) {
         if (state.saved) onDone()
@@ -165,9 +168,28 @@ fun TemplateEditorScreen(
             val existingId = state.templateId
             if (!existingId.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.template_link_open_camera),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    )
+                    Switch(
+                        checked = openCamera,
+                        onCheckedChange = { openCamera = it },
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
-                        val url = MarkQLink.webTemplateUrl(settings.linkBaseUrl, existingId)
+                        val url = MarkQLink.webTemplateUrl(
+                            settings.linkBaseUrl,
+                            existingId,
+                            openCamera = openCamera,
+                        )
                         if (url == null) {
                             copyMessage = R.string.error_template_link_base_unset
                         } else {

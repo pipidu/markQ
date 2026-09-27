@@ -225,9 +225,9 @@ class EditorViewModel(
 
     fun showError(message: String) = _state.update { it.copy(error = message) }
 
-    fun addCameraCapture(context: Context, file: File) {
+    fun addCameraCapture(context: Context, file: File): Boolean {
         try {
-            if (!file.exists() || file.length() <= 0L) return
+            if (!file.exists() || file.length() <= 0L) return false
             val pending = File(context.cacheDir, "pending").apply { mkdirs() }
             val dest = File(pending, UUID.randomUUID().toString())
             file.inputStream().use { input ->
@@ -241,6 +241,7 @@ class EditorViewModel(
                 fromImagePicker = true,
             )
             _state.update { it.copy(attachments = it.attachments + extra) }
+            return true
         } finally {
             CaptureUris.deleteQuietly(file)
         }
@@ -329,9 +330,10 @@ class EditorViewModel(
                         longitude = lng,
                         placeName = place,
                     )
+                    id
                 }
-            }.onSuccess {
-                _state.update { it.copy(busy = false, saved = true) }
+            }.onSuccess { savedId ->
+                _state.update { it.copy(busy = false, saved = true, entryId = savedId) }
             }.onFailure { err ->
                 _state.update {
                     it.copy(

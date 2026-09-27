@@ -35,11 +35,15 @@ class MainViewModel(
     private val _openTemplateId = MutableStateFlow<String?>(null)
     val openTemplateId: StateFlow<String?> = _openTemplateId.asStateFlow()
 
+    private val _openTemplateCamera = MutableStateFlow(false)
+    val openTemplateCamera: StateFlow<Boolean> = _openTemplateCamera.asStateFlow()
+
     private val _linkError = MutableStateFlow<String?>(null)
     val linkError: StateFlow<String?> = _linkError.asStateFlow()
 
     private val mutex = Mutex()
     private var pendingTemplateId: String? = null
+    private var pendingOpenCamera = false
     private var lastIntentIdentity: Int? = null
 
     init {
@@ -64,11 +68,13 @@ class MainViewModel(
             return
         }
         pendingTemplateId = id
+        pendingOpenCamera = MarkQLink.parseOpenCamera(data)
         viewModelScope.launch { resolvePending() }
     }
 
     fun onOpenedTemplateLink() {
         _openTemplateId.value = null
+        _openTemplateCamera.value = false
     }
 
     fun consumeLinkError() {
@@ -98,10 +104,14 @@ class MainViewModel(
         }
         if (row == null || row.deleted) {
             pendingTemplateId = null
+            pendingOpenCamera = false
             _linkError.value = app.getString(R.string.error_template_link_missing)
             return
         }
+        val camera = pendingOpenCamera
         pendingTemplateId = null
+        pendingOpenCamera = false
+        _openTemplateCamera.value = camera
         _openTemplateId.value = id
     }
 }

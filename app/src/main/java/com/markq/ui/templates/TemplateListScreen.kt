@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,6 +83,7 @@ fun TemplateListScreen(
     val copiedMsg = stringResource(R.string.template_link_copied)
     val unsetMsg = stringResource(R.string.error_template_link_base_unset)
     var pendingDelete by remember { mutableStateOf<String?>(null) }
+    var openCamera by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -131,12 +133,32 @@ fun TemplateListScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.template_link_open_camera),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        )
+                        Switch(
+                            checked = openCamera,
+                            onCheckedChange = { openCamera = it },
+                        )
+                    }
+                }
                 items(templates, key = { it.id }) { row ->
                     TemplateCard(
                         row = row,
                         onUse = { onUse(row.id) },
                         onCopyLink = {
-                            val url = MarkQLink.webTemplateUrl(settings.linkBaseUrl, row.id)
+                            val url = MarkQLink.webTemplateUrl(
+                                settings.linkBaseUrl,
+                                row.id,
+                                openCamera = openCamera,
+                            )
                             if (url == null) {
                                 scope.launch { snackbar.showSnackbar(unsetMsg) }
                             } else {
