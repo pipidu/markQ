@@ -87,11 +87,16 @@ sealed class MarkListFilter {
 }
 
 object MarkListVisibility {
-    fun include(completed: Boolean, tags: List<String>, filter: MarkListFilter): Boolean =
+    fun include(
+        completed: Boolean,
+        tags: List<String>,
+        filter: MarkListFilter,
+        stayVisible: Boolean = false,
+    ): Boolean =
         when (filter) {
-            MarkListFilter.All -> !completed
+            MarkListFilter.All -> !completed || stayVisible
             MarkListFilter.Completed -> completed
-            is MarkListFilter.Tag -> !completed && MarkTags.contains(
+            is MarkListFilter.Tag -> (!completed || stayVisible) && MarkTags.contains(
                 MarkTags.encode(tags),
                 filter.name,
             )

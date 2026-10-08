@@ -28,6 +28,9 @@ class HomeViewModel(
     )
     private val _listFilter = MutableStateFlow<MarkListFilter>(MarkListFilter.All)
     val listFilter: StateFlow<MarkListFilter> = _listFilter.asStateFlow()
+    private val _keptVisible = MutableStateFlow<Set<String>>(emptySet())
+    private val _justCompletedNonce = MutableStateFlow(0)
+    val justCompletedNonce: StateFlow<Int> = _justCompletedNonce.asStateFlow()
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _searchOpen = MutableStateFlow(false)
@@ -48,12 +51,14 @@ class HomeViewModel(
         allEntries,
         _listFilter,
         _searchQuery,
-    ) { rows, filter, query ->
+        _keptVisible,
+    ) { rows, filter, query, kept ->
         rows.filter { row ->
             MarkListVisibility.include(
                 completed = row.entry.completed,
                 tags = MarkTags.decode(row.entry.tags),
                 filter = filter,
+                stayVisible = row.entry.id in kept,
             ) && MarkSearch.matches(
                 query,
                 row.entry.text,
@@ -101,6 +106,11 @@ class HomeViewModel(
 
     fun setListFilter(filter: MarkListFilter) {
         _listFilter.value = filter
+        _keptVisible.value = emptySet()
+    }
+
+    fun showCompleted() {
+        setListFilter(MarkListFilter.Completed)
     }
 
     fun setSearchQuery(value: String) {
@@ -121,6 +131,7 @@ class HomeViewModel(
     }
 
     fun refresh(fromPull: Boolean = false) {
+        _keptVisible.value = emptySet()
         viewModelScope.launch {
             if (fromPull) _pulling.value = true
             try {
@@ -132,7 +143,18 @@ class HomeViewModel(
     }
 
     fun complete(id: String) {
-        viewModelScope.launch { repo.complete(id) }
+        viewModelScope.launch {
+            val wasCompleted = allEntries.value.any { it.entry.id == id && it.entry.completed }
+            val hidesCompleted = _listFilter.value !is MarkListFilter.Completed
+            if (!wasCompleted && hidesCompleted) {
+                _keptVisible.value = _keptVisible.value + id
+                _justCompletedNonce.value = _justCompletedNonce.value + 1
+            }
+            repo.complete(id)
+            if (wasCompleted) {
+                _keptVisible.value = _keptVisible.value - id
+            }
+        }
     }
 
     fun delete(id: String) {

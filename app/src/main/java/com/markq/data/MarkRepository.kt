@@ -231,7 +231,6 @@ class MarkRepository(
         )
         db.entries().upsert(model.toEntity(dirty = true, remoteEtag = row.entry.remoteEtag))
         unlinkLocalAttachments(row)
-        runCatching { sync.deleteRemoteFiles(id) }
         persistThenSync(id, hintIfPending = false)
     }
 

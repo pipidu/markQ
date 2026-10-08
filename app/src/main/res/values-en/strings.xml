@@ -50,6 +50,9 @@
     <string name="attr_completed">by %1$s · done</string>
     <string name="complete">Complete</string>
     <string name="uncomplete">Mark as not done</string>
+    <string name="swipe_hint">Swipe right to complete, left to delete</string>
+    <string name="completed_moved">Marked complete. You can see it under Completed.</string>
+    <string name="completed_view">View</string>
     <string name="new_mark">New mark</string>
     <string name="edit_mark">Mark details</string>
     <string name="color_label">Color</string>
@@ -60,7 +63,7 @@
     <string name="include_location">Attach location (on by default)</string>
     <string name="locating">Finding location…</string>
     <string name="location_unavailable">No location yet; save will omit it</string>
-    <string name="location_open_maps">Navigate in maps</string>
+    <string name="location_open_maps">View on map</string>
     <string name="maps_choose">Choose map</string>
     <string name="maps_baidu">Baidu Maps</string>
     <string name="maps_amap">Amap</string>
@@ -94,7 +97,7 @@
     <string name="delete_template_body">This removes it for everyone on the shared server.</string>
     <string name="save_server">Save server</string>
     <string name="share_code">Share code</string>
-    <string name="share_code_help">Send this to teammates so they can join the same WebDAV folder. Recipients must still set their own nickname.</string>
+    <string name="share_code_help">Send this to teammates so they can join the same WebDAV folder. The code contains the WebDAV password in plaintext; handing over the code hands over the disk password. Recipients must still set their own nickname.</string>
     <string name="copy_share_code">Copy share code</string>
     <string name="link_base_section">Open-link domain</string>
     <string name="link_base_url">Open-link domain</string>

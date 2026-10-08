@@ -1,5 +1,6 @@
 package com.markq.core
 
+import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -559,6 +560,18 @@ class MarkPlaceTest {
         assertEquals("位置", MarkPlace.shortPoiName("  "))
         assertEquals("East Nanjing Road", MarkPlace.shortPoiName("East Nanjing Road, Huangpu, Shanghai"))
     }
+
+    @Test
+    fun firstOpenShowsThePinAndKeepsLaterUrisAsFallback() {
+        val amap = MarkPlace.amapUris(31.2304, 121.4737, "上海")
+        assertTrue(amap[0].startsWith("androidamap://viewMap?"))
+        assertTrue(amap[1].startsWith("amapuri://route/plan/"))
+        assertTrue(amap[2].startsWith("androidamap://navi?"))
+        val baidu = MarkPlace.baiduUris(31.2304, 121.4737, "上海")
+        assertTrue(baidu[0].startsWith("baidumap://map/marker?"))
+        assertTrue(baidu[1].startsWith("baidumap://map/geocoder?"))
+        assertFalse(baidu[0].contains("navi"))
+    }
 }
 
 class NominatimPlaceTest {
@@ -608,6 +621,57 @@ class MarkListVisibilityTest {
         assertFalse(MarkListVisibility.include(false, listOf("work"), MarkListFilter.Completed))
         assertTrue(MarkListVisibility.include(false, listOf("work"), MarkListFilter.Tag("work")))
         assertFalse(MarkListVisibility.include(false, listOf("home"), MarkListFilter.Tag("work")))
+    }
+
+    @Test
+    fun justCompletedStaysOnTheCurrentList() {
+        assertTrue(
+            MarkListVisibility.include(
+                completed = true,
+                tags = listOf("work"),
+                filter = MarkListFilter.All,
+                stayVisible = true,
+            ),
+        )
+        assertTrue(
+            MarkListVisibility.include(
+                completed = true,
+                tags = listOf("work"),
+                filter = MarkListFilter.Tag("work"),
+                stayVisible = true,
+            ),
+        )
+        assertFalse(
+            MarkListVisibility.include(
+                completed = true,
+                tags = listOf("home"),
+                filter = MarkListFilter.Tag("work"),
+                stayVisible = true,
+            ),
+        )
+        assertFalse(
+            MarkListVisibility.include(
+                completed = true,
+                tags = listOf("work"),
+                filter = MarkListFilter.All,
+                stayVisible = false,
+            ),
+        )
+        assertTrue(
+            MarkListVisibility.include(
+                completed = true,
+                tags = listOf("work"),
+                filter = MarkListFilter.Completed,
+            ),
+        )
+        assertFalse(
+            MarkListVisibility.include(
+                completed = false,
+                tags = emptyList(),
+                filter = MarkListFilter.Completed,
+                stayVisible = true,
+            ),
+        )
     }
 }
 
@@ -755,5 +819,122 @@ class GithubMirrorTest {
         assertTrue(GithubMirror.isAllowedHost("raw.githubusercontent.com"))
         assertFalse(GithubMirror.isAllowedHost("evil.com"))
         assertFalse(GithubMirror.isAllowedHost("notgithub.com"))
+    }
+}
+
+class SyncConflictTest {
+    @Test
+    fun attachment412DoesNotReplayLocalBytesWithoutIfMatch() = runBlocking {
+        val puts = mutableListOf<String?>()
+        val failure = runCatching {
+            ConditionalPut.run(
+                initial = "local-bytes".toByteArray(),
+                ifMatch = "etag-old",
+                put = { _, match ->
+                    puts += match
+                    throw ConditionalPut.PreconditionFailed()
+                },
+                onConflict = { "local-bytes".toByteArray() to null },
+            )
+        }
+        assertTrue(failure.exceptionOrNull() is ConditionalPut.PreconditionFailed)
+        assertEquals(listOf("etag-old"), puts)
+        assertTrue(puts.none { it == null })
+    }
+
+    @Test
+    fun entry412RetriesMergedBodyWithRefreshedEtag() = runBlocking {
+        val puts = mutableListOf<Pair<String, String?>>()
+        var attempts = 0
+        val etag = ConditionalPut.run(
+            initial = "local-json".toByteArray(),
+            ifMatch = "e1",
+            put = { body, match ->
+                puts += body.toString(Charsets.UTF_8) to match
+                attempts++
+                if (attempts == 1) throw ConditionalPut.PreconditionFailed()
+                "e2"
+            },
+            onConflict = { "merged-json".toByteArray() to "e2" },
+        )
+        assertEquals("e2", etag)
+        assertEquals("local-json" to "e1", puts[0])
+        assertEquals("merged-json" to "e2", puts[1])
+        assertTrue(puts.none { it.second == null })
+    }
+
+    @Test
+    fun repeated412DoesNotForceWriteWithoutIfMatch() = runBlocking {
+        val puts = mutableListOf<String?>()
+        val failure = runCatching {
+            ConditionalPut.run(
+                initial = "local-json".toByteArray(),
+                ifMatch = "e1",
+                put = { _, match ->
+                    puts += match
+                    throw ConditionalPut.PreconditionFailed()
+                },
+                onConflict = { "merged-json".toByteArray() to "e-new" },
+            )
+        }
+        assertTrue(failure.exceptionOrNull() is ConditionalPut.PreconditionFailed)
+        assertEquals(SyncConflict.MAX_MERGED_PUTS + 1, puts.size)
+        assertTrue(puts.all { it != null && it.isNotBlank() })
+    }
+
+    @Test
+    fun differentAttachmentBytesForkInsteadOfOverwrite() {
+        val clash = SyncConflict.resolveAttachment412(
+            localSha256 = "local-hash",
+            remoteSha256 = "remote-hash",
+            remoteEtag = "etag-remote",
+            remoteMissing = false,
+            forkId = "fork-1",
+        )
+        assertTrue(clash is SyncConflict.AttachmentConflict.KeepRemoteAndForkLocal)
+        assertEquals("fork-1", (clash as SyncConflict.AttachmentConflict.KeepRemoteAndForkLocal).forkId)
+
+        val same = SyncConflict.resolveAttachment412(
+            localSha256 = "abc",
+            remoteSha256 = "ABC",
+            remoteEtag = "etag-same",
+            remoteMissing = false,
+            forkId = "fork-1",
+        )
+        assertTrue(same is SyncConflict.AttachmentConflict.AdoptRemote)
+        assertEquals("etag-same", (same as SyncConflict.AttachmentConflict.AdoptRemote).etag)
+
+        val gone = SyncConflict.resolveAttachment412(
+            localSha256 = "abc",
+            remoteSha256 = null,
+            remoteEtag = null,
+            remoteMissing = true,
+            forkId = "fork-1",
+        )
+        assertTrue(gone is SyncConflict.AttachmentConflict.UploadAsNew)
+        assertFalse(SyncConflict.putWithoutMatchAllowed(remoteStillExists = true))
+        assertTrue(SyncConflict.putWithoutMatchAllowed(remoteStillExists = false))
+        assertTrue(SyncConflict.retryPut(null, 0) is SyncConflict.Retry.Unresolved)
+        assertTrue(SyncConflict.retryPut("   ", 0) is SyncConflict.Retry.Unresolved)
+    }
+
+    @Test
+    fun remoteFilesFollowMergedEntryNotPreMergeDeletedFlag() {
+        assertEquals(
+            SyncConflict.FileAction.UploadAttachments,
+            SyncConflict.filesFollowMergedEntry(preMergeDeleted = true, mergedDeleted = false),
+        )
+        assertEquals(
+            SyncConflict.FileAction.DeleteRemoteFiles,
+            SyncConflict.filesFollowMergedEntry(preMergeDeleted = true, mergedDeleted = true),
+        )
+        assertEquals(
+            SyncConflict.FileAction.DeleteRemoteFiles,
+            SyncConflict.filesFollowMergedEntry(preMergeDeleted = false, mergedDeleted = true),
+        )
+        assertEquals(
+            SyncConflict.FileAction.UploadAttachments,
+            SyncConflict.filesFollowMergedEntry(preMergeDeleted = false, mergedDeleted = false),
+        )
     }
 }

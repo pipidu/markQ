@@ -49,6 +49,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -126,6 +127,7 @@ fun HomeScreen(
     val pendingCount by vm.pendingCount.collectAsStateWithLifecycle()
     val lastSyncEpochMs by vm.lastSyncEpochMs.collectAsStateWithLifecycle()
     val saveHint by vm.saveHint.collectAsStateWithLifecycle()
+    val justCompletedNonce by vm.justCompletedNonce.collectAsStateWithLifecycle()
     val ui = LocalMarkQUiColors.current
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
@@ -154,6 +156,13 @@ fun HomeScreen(
         val msg = saveHint ?: return@LaunchedEffect
         snackbar.showSnackbar(msg)
         vm.consumeSaveHint()
+    }
+    val completedMoved = stringResource(R.string.completed_moved)
+    val completedView = stringResource(R.string.completed_view)
+    LaunchedEffect(justCompletedNonce) {
+        if (justCompletedNonce == 0) return@LaunchedEffect
+        val result = snackbar.showSnackbar(completedMoved, actionLabel = completedView)
+        if (result == SnackbarResult.ActionPerformed) vm.showCompleted()
     }
 
     val lastSuccess = maxOf(sync.lastSuccessEpochMs, lastSyncEpochMs)
@@ -251,6 +260,14 @@ fun HomeScreen(
                 selected = listFilter,
                 onSelect = vm::setListFilter,
             )
+            if (hasAnyMarks) {
+                Text(
+                    stringResource(R.string.swipe_hint),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = ui.onBackground.copy(alpha = 0.7f),
+                )
+            }
             PullToRefreshBox(
                 isRefreshing = pulling,
                 onRefresh = { vm.refresh(fromPull = true) },
