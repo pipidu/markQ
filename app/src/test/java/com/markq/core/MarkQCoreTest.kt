@@ -288,6 +288,26 @@ class WebDavCursorTest {
     fun normalizesQuotedEtag() {
         assertEquals("abc", com.markq.data.remote.WebDavClient.normalizeEtag("W/\"abc\""))
         assertEquals("abc", com.markq.data.remote.WebDavClient.normalizeEtag("\"abc\""))
+        assertEquals("8sKBsnMc5tH71U67xjQTCQ", com.markq.data.remote.WebDavClient.normalizeEtag("8sKBsnMc5tH71U67xjQTCQ"))
+    }
+
+    @Test
+    fun nutstoreUnquotedEtagRetriesWithoutQuotes() {
+        val client = com.markq.data.remote.WebDavClient
+        val stored = "8sKBsnMc5tH71U67xjQTCQ"
+        val quoted = client.quotedEtag(stored)
+        assertEquals("\"$stored\"", quoted)
+        assertEquals(stored, client.alternateIfMatch(quoted, stored))
+        assertEquals(null, client.alternateIfMatch(quoted, "different-token"))
+        assertEquals(null, client.alternateIfMatch(quoted, "\"$stored\""))
+    }
+
+    @Test
+    fun gzipSuffixRetriesTheBareStrongTag() {
+        val client = com.markq.data.remote.WebDavClient
+        assertEquals("\"abc\"", client.alternateIfMatch("\"abc-gzip\"", "\"abc-gzip\""))
+        assertEquals("\"abc\"", client.alternateIfMatch("\"abc-gzip\"", "W/\"abc-gzip\""))
+        assertEquals("\"abc\"", client.alternateIfMatch("abc", "\"abc\""))
     }
 }
 
@@ -916,6 +936,15 @@ class SyncConflictTest {
         assertTrue(SyncConflict.putWithoutMatchAllowed(remoteStillExists = false))
         assertTrue(SyncConflict.retryPut(null, 0) is SyncConflict.Retry.Unresolved)
         assertTrue(SyncConflict.retryPut("   ", 0) is SyncConflict.Retry.Unresolved)
+    }
+
+    @Test
+    fun missingEtagDoesNotBlockTheFollowUpPut() {
+        assertEquals("stored", SyncConflict.followUpIfMatch("stored", "live"))
+        assertEquals("live", SyncConflict.followUpIfMatch("  ", "live"))
+        assertEquals("live", SyncConflict.followUpIfMatch(null, " live "))
+        assertEquals(null, SyncConflict.followUpIfMatch(null, null))
+        assertEquals(null, SyncConflict.followUpIfMatch("", "   "))
     }
 
     @Test

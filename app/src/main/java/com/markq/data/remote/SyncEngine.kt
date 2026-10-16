@@ -231,9 +231,14 @@ class SyncEngine(
                             merged = latest
                             val latestBody = json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(latest))
                                 .toByteArray(Charsets.UTF_8)
-                            val match = latestRow.entry.remoteEtag?.takeIf { it.isNotBlank() }
-                                ?: dav.get(config, url).etag?.takeIf { it.isNotBlank() }
-                                ?: throw WebDavException("Precondition failed", 412)
+                            val match = SyncConflict.followUpIfMatch(
+                                latestRow.entry.remoteEtag,
+                                if (latestRow.entry.remoteEtag.isNullOrBlank()) {
+                                    WebDavClient.normalizeEtag(dav.rawEtag(config, url))
+                                } else {
+                                    null
+                                },
+                            )
                             cursorEtag = putWithRetry(
                                 config,
                                 url,
@@ -253,8 +258,9 @@ class SyncEngine(
                     }
                 }
                 val path = WebDavClient.cursorKey(url)
-                entries.markPushed(model.id, dirty = false, etag = cursorEtag)
-                cursors.upsert(SyncCursorEntity(path, cursorEtag, Instant.now().toString()))
+                val pushedEtag = cursorEtag?.takeIf { it.isNotBlank() } ?: row.entry.remoteEtag
+                entries.markPushed(model.id, dirty = false, etag = pushedEtag)
+                cursors.upsert(SyncCursorEntity(path, pushedEtag, Instant.now().toString()))
             } catch (e: WebDavException) {
                 if (e.code == 412) continue else throw e
             }
@@ -532,8 +538,9 @@ class SyncEngine(
                     json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
                 }
                 val path = WebDavClient.cursorKey(url)
-                templates.markPushed(model.id, dirty = false, etag = etag)
-                cursors.upsert(SyncCursorEntity(path, etag, Instant.now().toString()))
+                val pushedEtag = etag?.takeIf { it.isNotBlank() } ?: row.remoteEtag
+                templates.markPushed(model.id, dirty = false, etag = pushedEtag)
+                cursors.upsert(SyncCursorEntity(path, pushedEtag, Instant.now().toString()))
             } catch (e: WebDavException) {
                 if (e.code == 412) continue else throw e
             }

@@ -2,6 +2,7 @@ package com.markq.data.remote
 
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import okhttp3.Credentials
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -26,6 +27,8 @@ data class DavResource(
     val isCollection: Boolean,
     val etag: String?,
     val lastModified: String?,
+    /** ETag / getetag text as the server sent it, before quote normalization. */
+    val rawEtag: String? = null,
 )
 
 class WebDavException(message: String, val code: Int? = null) : IOException(message)
@@ -33,6 +36,11 @@ class WebDavException(message: String, val code: Int? = null) : IOException(mess
 class WebDavClient(
     private val http: OkHttpClient,
 ) {
+    /**
+     * Hosts whose live ETag is an unquoted token (Nutstore). Remembered so the
+     * next PUT sends that spelling first instead of eating a false 412.
+     */
+    private val unquotedIfMatchHosts = ConcurrentHashMap.newKeySet<String>()
     fun entriesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "entries")
 
     fun filesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "files")
@@ -80,7 +88,13 @@ class WebDavClient(
         }
     }
 
-    fun propfind(config: WebDavConfig, url: HttpUrl, depth: Int = 1): List<DavResource> {
+    fun propfind(
+        config: WebDavConfig,
+        url: HttpUrl,
+        depth: Int = 1,
+        directory: Boolean = true,
+    ): List<DavResource> {
+        val target = if (directory) ensureCollectionUrl(url) else url
         val body = """
             <?xml version="1.0" encoding="utf-8"?>
             <d:propfind xmlns:d="DAV:">
@@ -94,7 +108,7 @@ class WebDavClient(
         val request = authorized(
             config,
             Request.Builder()
-                .url(ensureCollectionUrl(url))
+                .url(target)
                 .method("PROPFIND", body)
                 .header("Depth", depth.toString())
                 .header("Content-Type", "application/xml; charset=utf-8"),
@@ -104,7 +118,7 @@ class WebDavClient(
             if (!response.isSuccessful && response.code != 207) {
                 throw WebDavException("PROPFIND ${url.encodedPath} failed (${response.code})", response.code)
             }
-            return parseMultiStatus(text, url)
+            return parseMultiStatus(text, target)
         }
     }
 
@@ -125,6 +139,16 @@ class WebDavClient(
         }
     }
 
+    /**
+     * Conditional PUT.
+     *
+     * Nutstore answers GET/PROPFIND with an unquoted validator (`Etag: 8sKB…`) and
+     * compares `If-Match` to that exact text. v1.0.28 always sent the quoted form
+     * (`If-Match: "8sKB…"`), so every update of an existing file was a false 412
+     * and [com.markq.core.ConditionalPut] left the entry dirty. A quoted 412 is
+     * retried once with the live spelling when the opaque tag is unchanged.
+     * A different live tag still fails so the caller can merge instead of clobbering.
+     */
     fun put(
         config: WebDavConfig,
         url: HttpUrl,
@@ -132,22 +156,39 @@ class WebDavClient(
         contentType: String,
         ifMatch: String?,
     ): String? {
-        val builder = Request.Builder()
-            .url(url)
-            .put(bytes.toRequestBody(contentType.toMediaType()))
-            .header("Content-Type", contentType)
-        if (!ifMatch.isNullOrBlank()) {
-            builder.header("If-Match", quotedEtag(ifMatch))
+        val normalized = normalizeEtag(ifMatch)
+        if (normalized == null) {
+            return executePut(config, url, bytes, contentType, ifMatchHeader = null)
         }
-        val request = authorized(config, builder)
-        http.newCall(request).execute().use { response ->
-            if (response.code == 412) {
-                throw WebDavException("Precondition failed", 412)
-            }
-            if (!response.isSuccessful && response.code != 201) {
-                throw WebDavException("PUT ${url.encodedPath} failed (${response.code})", response.code)
-            }
-            return normalizeEtag(response.header("ETag"))
+        val quoted = quotedEtag(normalized)
+        val unquoted = normalized.takeIf { isOpaqueToken(it) }
+        val first = if (unquoted != null && url.host in unquotedIfMatchHosts) unquoted else quoted
+        try {
+            return executePut(config, url, bytes, contentType, first)
+        } catch (e: WebDavException) {
+            if (e.code != 412) throw e
+        }
+        val alternate = alternateIfMatch(first, discoverRawEtag(config, url))
+        if (alternate == null) {
+            throw WebDavException("Precondition failed", 412)
+        }
+        val etag = executePut(config, url, bytes, contentType, alternate)
+        if (isUnquotedHeader(alternate)) {
+            unquotedIfMatchHosts.add(url.host)
+        } else {
+            unquotedIfMatchHosts.remove(url.host)
+        }
+        return etag
+    }
+
+    /**
+     * Live validator text, or null when the resource is missing or publishes none.
+     * Network and auth failures propagate; a missing tag does not.
+     */
+    fun rawEtag(config: WebDavConfig, url: HttpUrl): String? {
+        return when (val lookup = lookupEtag(config, url)) {
+            is EtagLookup.Found -> lookup.raw?.trim()?.ifBlank { null }
+            EtagLookup.Missing -> null
         }
     }
 
@@ -180,8 +221,96 @@ class WebDavClient(
         delete(config, url)
     }
 
+    private fun executePut(
+        config: WebDavConfig,
+        url: HttpUrl,
+        bytes: ByteArray,
+        contentType: String,
+        ifMatchHeader: String?,
+    ): String? {
+        val builder = Request.Builder()
+            .url(url)
+            .put(bytes.toRequestBody(contentType.toMediaType()))
+            .header("Content-Type", contentType)
+        if (!ifMatchHeader.isNullOrBlank()) {
+            builder.header("If-Match", ifMatchHeader)
+        }
+        val request = authorized(config, builder)
+        val fromResponse = http.newCall(request).execute().use { response ->
+            if (response.code == 412) {
+                throw WebDavException("Precondition failed", 412)
+            }
+            if (!response.isSuccessful && response.code != 201 && response.code != 204) {
+                throw WebDavException("PUT ${url.encodedPath} failed (${response.code})", response.code)
+            }
+            normalizeEtag(response.header("ETag"))
+        }
+        if (fromResponse != null) return fromResponse
+        // Nutstore PUT is 204 with no ETag. Read the new validator so the next
+        // update can send If-Match instead of wiping the stored tag.
+        return normalizeEtag(discoverRawEtag(config, url))
+    }
+
+    private fun discoverRawEtag(config: WebDavConfig, url: HttpUrl): String? {
+        return try {
+            when (val lookup = lookupEtag(config, url)) {
+                is EtagLookup.Found -> lookup.raw
+                EtagLookup.Missing -> null
+            }
+        } catch (_: IOException) {
+            null
+        }
+    }
+
+    private sealed class EtagLookup {
+        data class Found(val raw: String?) : EtagLookup()
+        data object Missing : EtagLookup()
+    }
+
+    private fun lookupEtag(config: WebDavConfig, url: HttpUrl): EtagLookup {
+        // HEAD 404 is not proof the file is gone: some WebDAV servers reject HEAD.
+        // Fall through to PROPFIND unless HEAD already returned a validator.
+        val head = try {
+            readHead(config, url)
+        } catch (e: WebDavException) {
+            if (e.code == 401 || e.code == 403) throw e
+            null
+        }
+        if (head is EtagLookup.Found && !head.raw.isNullOrBlank()) return head
+        return try {
+            val listing = propfind(config, url, depth = 0, directory = false)
+            val self = listing.firstOrNull {
+                it.url.encodedPath.trimEnd('/') == url.encodedPath.trimEnd('/')
+            } ?: listing.firstOrNull { !it.isCollection }
+            val raw = (self?.rawEtag ?: self?.etag)?.trim()?.ifBlank { null }
+            if (raw == null && head is EtagLookup.Missing) EtagLookup.Missing else EtagLookup.Found(raw)
+        } catch (e: WebDavException) {
+            when {
+                e.code == 401 || e.code == 403 -> throw e
+                e.code == 404 || head is EtagLookup.Missing -> EtagLookup.Missing
+                head is EtagLookup.Found -> head
+                else -> throw e
+            }
+        }
+    }
+
+    private fun readHead(config: WebDavConfig, url: HttpUrl): EtagLookup {
+        val request = authorized(config, Request.Builder().url(url).head())
+        http.newCall(request).execute().use { response ->
+            return when (response.code) {
+                404 -> EtagLookup.Missing
+                405, 501 -> EtagLookup.Found(null)
+                in 200..299 -> EtagLookup.Found(response.header("ETag")?.trim()?.ifBlank { null })
+                else -> throw WebDavException("HEAD ${url.encodedPath} failed (${response.code})", response.code)
+            }
+        }
+    }
+
     private fun authorized(config: WebDavConfig, builder: Request.Builder): Request {
         builder.header("User-Agent", "MarkQ")
+        // Identity keeps the strong validator. Gzip would rewrite ETag to a weak
+        // or "-gzip" tag that If-Match can never satisfy.
+        builder.header("Accept-Encoding", "identity")
         if (config.username.isNotBlank() || config.password.isNotEmpty()) {
             builder.header("Authorization", Credentials.basic(config.username, config.password))
         }
@@ -213,6 +342,42 @@ class WebDavClient(
         fun quotedEtag(etag: String): String {
             val n = normalizeEtag(etag) ?: etag
             return "\"$n\""
+        }
+
+        private val codingSuffix = Regex("-(?:gzip|br|deflate)$", RegexOption.IGNORE_CASE)
+        fun isOpaqueToken(value: String): Boolean {
+            if (value.isEmpty()) return false
+            return value.none { it.isWhitespace() || it == ',' || it == '"' || it == '\\' }
+        }
+
+        fun isUnquotedHeader(header: String): Boolean {
+            val stripped = header.trim().removePrefix("W/").removePrefix("w/").trim()
+            return stripped.isNotEmpty() && !stripped.startsWith("\"")
+        }
+
+        /**
+         * Second `If-Match` value after [attemptedHeader] got 412.
+         * Returns null when [liveRaw] is a different validator (real conflict)
+         * or when the spelling we already sent is the one the server published.
+         */
+        fun alternateIfMatch(attemptedHeader: String, liveRaw: String?): String? {
+            val live = liveRaw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            val liveOpaque = normalizeEtag(live) ?: return null
+            val attemptedOpaque = normalizeEtag(attemptedHeader) ?: return null
+            val liveBare = liveOpaque.replace(codingSuffix, "")
+            val attemptedBare = attemptedOpaque.replace(codingSuffix, "")
+            if (liveBare != attemptedBare) return null
+            val liveUnquoted = isUnquotedHeader(live)
+            val published = liveOpaque.takeIf { isOpaqueToken(it) }
+            if (liveUnquoted && published != null && attemptedHeader != published) {
+                return published
+            }
+            val bareQuoted = "\"$liveBare\""
+            val codingMismatch = liveOpaque != liveBare || attemptedOpaque != attemptedBare
+            if (bareQuoted != attemptedHeader && (codingMismatch || !liveUnquoted)) {
+                return bareQuoted
+            }
+            return null
         }
 
         fun parseMultiStatus(xml: String, requestUrl: HttpUrl): List<DavResource> {
@@ -256,6 +421,7 @@ class WebDavClient(
                                     isCollection = isCollection,
                                     etag = normalizeEtag(etag),
                                     lastModified = lastModified?.trim()?.ifBlank { null },
+                                    rawEtag = etag?.trim()?.ifBlank { null },
                                 )
                             }
                             inResponse = false

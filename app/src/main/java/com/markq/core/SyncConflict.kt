@@ -37,6 +37,18 @@ object SyncConflict {
         return Retry.Again(match)
     }
 
+    /**
+     * If-Match for a follow-up PUT of an entry whose attachments just changed.
+     * A blank result means the live resource has no validator, so the PUT must
+     * omit If-Match. Throwing 412 here left the mark dirty forever on servers
+     * that answer PUT with 204 and no ETag.
+     */
+    fun followUpIfMatch(stored: String?, live: String?): String? {
+        val storedToken = stored?.trim()?.takeIf { it.isNotEmpty() }
+        if (storedToken != null) return storedToken
+        return live?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
     sealed class AttachmentConflict {
         /** Remote bytes match ours; keep the remote etag and do not PUT. */
         data class AdoptRemote(val etag: String?) : AttachmentConflict()
