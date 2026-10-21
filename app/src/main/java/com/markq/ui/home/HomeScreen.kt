@@ -47,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -161,7 +162,13 @@ fun HomeScreen(
     val completedView = stringResource(R.string.completed_view)
     LaunchedEffect(justCompletedNonce) {
         if (justCompletedNonce == 0) return@LaunchedEffect
-        val result = snackbar.showSnackbar(completedMoved, actionLabel = completedView)
+        // With actionLabel, Material3 defaults to Indefinite and never auto-dismisses.
+        val result = snackbar.showSnackbar(
+            message = completedMoved,
+            actionLabel = completedView,
+            withDismissAction = true,
+            duration = SnackbarDuration.Long,
+        )
         if (result == SnackbarResult.ActionPerformed) vm.showCompleted()
     }
 
