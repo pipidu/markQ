@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markq.core.MarkColor
+import com.markq.core.MarkLastModified
 import com.markq.core.MarkPlace
 import com.markq.core.MarkTags
 import com.markq.core.SyncErrors
@@ -43,6 +44,7 @@ data class EditorUiState(
     val tags: List<String> = emptyList(),
     val tagDraft: String = "",
     val createdBy: String? = null,
+    val lastModifiedEpochMs: Long? = null,
     val attachments: List<DraftAttachment> = emptyList(),
     val compressImages: Boolean = true,
     val includeLocation: Boolean = true,
@@ -93,6 +95,10 @@ class EditorViewModel(
                     color = row.entry.color,
                     tags = MarkTags.decode(row.entry.tags),
                     createdBy = row.entry.createdBy,
+                    lastModifiedEpochMs = MarkLastModified.epochMs(
+                        row.entry.contentUpdatedAt,
+                        row.entry.statusUpdatedAt,
+                    ),
                     attachments = row.attachments.map { att ->
                         DraftAttachment(
                             key = att.id,

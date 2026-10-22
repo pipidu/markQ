@@ -48,6 +48,7 @@
     <string name="attr_by">by %1$s</string>
     <string name="attr_completed_by">by %1$s · done by %2$s</string>
     <string name="attr_completed">by %1$s · done</string>
+    <string name="last_modified">Last modified %1$s</string>
     <string name="complete">Complete</string>
     <string name="uncomplete">Mark as not done</string>
     <string name="swipe_hint">Swipe right to complete, left to delete</string>

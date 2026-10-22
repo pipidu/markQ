@@ -87,6 +87,7 @@ import coil.compose.AsyncImage
 import com.markq.LocaleHelper
 import com.markq.R
 import com.markq.core.MarkColor
+import com.markq.core.MarkLastModified
 import com.markq.core.MarkListFilter
 import com.markq.core.MarkPlace
 import com.markq.core.MarkTags
@@ -94,6 +95,7 @@ import com.markq.core.SyncErrors
 import com.markq.data.local.EntryWithAttachments
 import com.markq.ui.CompactTopAppBar
 import com.markq.ui.ImageViewer
+import com.markq.ui.formatWhen
 import com.markq.ui.MapsAppChooser
 import com.markq.ui.MapsNavTarget
 import com.markq.ui.appViewModel
@@ -103,7 +105,6 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlin.math.abs
 import kotlinx.coroutines.yield
 
@@ -541,6 +542,21 @@ private fun MarkCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
+                    stringResource(
+                        R.string.last_modified,
+                        formatWhen(
+                            MarkLastModified.epochMs(
+                                row.entry.contentUpdatedAt,
+                                row.entry.statusUpdatedAt,
+                            ),
+                        ),
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
                     attributionText(row),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -640,13 +656,6 @@ private fun attributionText(row: EntryWithAttachments): String {
         stringResource(R.string.attr_by, created)
     }
 }
-
-private val dateFmt: DateTimeFormatter =
-    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
-        .withLocale(LocaleHelper.appLocale)
-        .withZone(ZoneId.systemDefault())
-
-fun formatWhen(epochMs: Long): String = dateFmt.format(Instant.ofEpochMilli(epochMs))
 
 @Composable
 private fun syncStatusLine(

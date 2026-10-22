@@ -48,6 +48,7 @@
     <string name="attr_by">由 %1$s 添加</string>
     <string name="attr_completed_by">由 %1$s 添加 · %2$s 已完成</string>
     <string name="attr_completed">由 %1$s 添加 · 已完成</string>
+    <string name="last_modified">最后修改时间 %1$s</string>
     <string name="complete">完成</string>
     <string name="uncomplete">取消完成</string>
     <string name="swipe_hint">右滑完成，左滑删除</string>

@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import com.markq.ui.CompactTopAppBar
+import com.markq.ui.formatWhen
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -220,13 +221,22 @@ fun EditorScreen(
                 label = { Text(stringResource(R.string.text)) },
                 minLines = 4,
             )
-            if (!state.createdBy.isNullOrBlank()) {
+            if (!state.createdBy.isNullOrBlank() || state.lastModifiedEpochMs != null) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.attr_by, state.createdBy!!),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (!state.createdBy.isNullOrBlank()) {
+                    Text(
+                        stringResource(R.string.attr_by, state.createdBy!!),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.lastModifiedEpochMs?.let { modifiedAt ->
+                    Text(
+                        stringResource(R.string.last_modified, formatWhen(modifiedAt)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.color_label), style = MaterialTheme.typography.labelLarge)

@@ -260,6 +260,30 @@ class EntryMergeTest {
     }
 }
 
+class MarkLastModifiedTest {
+    @Test
+    fun laterClockWins() {
+        val earlier = java.time.Instant.parse("2026-01-01T12:00:00Z")
+        val later = java.time.Instant.parse("2026-01-01T13:00:00Z")
+        assertEquals(later, MarkLastModified.at(contentUpdatedAt = earlier, statusUpdatedAt = later))
+        assertEquals(later, MarkLastModified.at(contentUpdatedAt = later, statusUpdatedAt = earlier))
+    }
+
+    @Test
+    fun equalClocksStayPut() {
+        val t = java.time.Instant.parse("2026-01-01T10:00:00Z")
+        assertEquals(t, MarkLastModified.at(t, t))
+    }
+
+    @Test
+    fun epochMillisFollowTheLaterClock() {
+        val earlier = java.time.Instant.parse("2026-01-01T11:00:00Z").toEpochMilli()
+        val later = java.time.Instant.parse("2026-01-01T12:00:00Z").toEpochMilli()
+        assertEquals(later, MarkLastModified.epochMs(contentUpdatedAtMs = earlier, statusUpdatedAtMs = later))
+        assertEquals(later, MarkLastModified.epochMs(contentUpdatedAtMs = later, statusUpdatedAtMs = earlier))
+    }
+}
+
 class SemVerTest {
     @Test
     fun detectsNewerRelease() {
