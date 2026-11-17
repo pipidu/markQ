@@ -21,12 +21,14 @@ import com.markq.data.remote.WebDavConfig
 import java.io.File
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 
 class MarkRepository(
     private val db: MarkDatabase,
@@ -305,34 +307,37 @@ class MarkRepository(
         val compressImage: Boolean = false,
     )
 
-    private fun storeNewAttachments(entryId: String, attachments: List<PendingAttachment>): List<AttachmentEntity> {
-        return attachments.map { pending ->
-            val attachId = UUID.randomUUID().toString()
-            val wantCompress = pending.compressImage
-            val copied = files.copyFromUri(appContext, pending.uri, entryId, attachId, compressImage = wantCompress)
-            val mime = if (copied.usedWebp) {
-                com.markq.core.ImageNames.WEBP_MIME
-            } else {
-                pending.mime.ifBlank { "application/octet-stream" }
+    private suspend fun storeNewAttachments(entryId: String, attachments: List<PendingAttachment>): List<AttachmentEntity> {
+        if (attachments.isEmpty()) return emptyList()
+        return withContext(Dispatchers.IO) {
+            attachments.map { pending ->
+                val attachId = UUID.randomUUID().toString()
+                val wantCompress = pending.compressImage
+                val copied = files.copyFromUri(appContext, pending.uri, entryId, attachId, compressImage = wantCompress)
+                val mime = if (copied.usedWebp) {
+                    com.markq.core.ImageNames.WEBP_MIME
+                } else {
+                    pending.mime.ifBlank { "application/octet-stream" }
+                }
+                val name = if (copied.usedWebp) {
+                    com.markq.core.ImageNames.webpFileName(pending.name)
+                } else {
+                    pending.name
+                }
+                val kind = if (mime.startsWith("image/") || pending.compressImage) "image" else "file"
+                AttachmentEntity(
+                    id = attachId,
+                    entryId = entryId,
+                    name = name,
+                    mime = mime,
+                    kind = kind,
+                    size = copied.size,
+                    sha256 = copied.sha256,
+                    localPath = copied.file.absolutePath,
+                    dirty = true,
+                    remoteEtag = null,
+                )
             }
-            val name = if (copied.usedWebp) {
-                com.markq.core.ImageNames.webpFileName(pending.name)
-            } else {
-                pending.name
-            }
-            val kind = if (mime.startsWith("image/") || pending.compressImage) "image" else "file"
-            AttachmentEntity(
-                id = attachId,
-                entryId = entryId,
-                name = name,
-                mime = mime,
-                kind = kind,
-                size = copied.size,
-                sha256 = copied.sha256,
-                localPath = copied.file.absolutePath,
-                dirty = true,
-                remoteEtag = null,
-            )
         }
     }
 

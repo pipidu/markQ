@@ -158,8 +158,8 @@ fun EditorScreen(
                 CaptureUris.revoke(context, uri)
             }
         }
-        if (success && file != null && vm.addCameraCapture(context, file)) {
-            if (openCamera) vm.save()
+        if (success && file != null) {
+            vm.addCameraCapture(context, file, saveAfter = openCamera)
         } else {
             CaptureUris.deleteQuietly(file)
             if (openCamera) onDone()
@@ -186,7 +186,7 @@ fun EditorScreen(
     }
 
     LaunchedEffect(state.loaded, openSave, openCamera) {
-        if (openSave && !openCamera && state.loaded && !saveLinkStarted && !state.saved && !state.busy) {
+        if (openSave && !openCamera && state.loaded && !saveLinkStarted && !state.saved && !state.busy && !state.importing) {
             saveLinkStarted = true
             vm.save()
         }
@@ -422,7 +422,7 @@ fun EditorScreen(
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = vm::save,
-                enabled = !state.busy && !state.saved,
+                enabled = !state.busy && !state.importing && !state.saved,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(if (state.busy) stringResource(R.string.saving) else stringResource(R.string.save))

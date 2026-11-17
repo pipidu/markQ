@@ -41,6 +41,14 @@ class WebDavClient(
      * next PUT sends that spelling first instead of eating a false 412.
      */
     private val unquotedIfMatchHosts = ConcurrentHashMap.newKeySet<String>()
+
+    fun unquotedIfMatchHosts(): Set<String> = unquotedIfMatchHosts.toSet()
+
+    fun loadUnquotedIfMatchHosts(hosts: Collection<String>) {
+        unquotedIfMatchHosts.clear()
+        hosts.map { it.trim() }.filter { it.isNotEmpty() }.forEach { unquotedIfMatchHosts.add(it) }
+    }
+
     fun entriesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "entries")
 
     fun filesUrl(config: WebDavConfig): HttpUrl = join(config.baseUrl, "files")
@@ -155,16 +163,17 @@ class WebDavClient(
         bytes: ByteArray,
         contentType: String,
         ifMatch: String?,
+        discoverEtag: Boolean = true,
     ): String? {
         val normalized = normalizeEtag(ifMatch)
         if (normalized == null) {
-            return executePut(config, url, bytes, contentType, ifMatchHeader = null)
+            return executePut(config, url, bytes, contentType, ifMatchHeader = null, discoverEtag = discoverEtag)
         }
         val quoted = quotedEtag(normalized)
         val unquoted = normalized.takeIf { isOpaqueToken(it) }
         val first = if (unquoted != null && url.host in unquotedIfMatchHosts) unquoted else quoted
         try {
-            return executePut(config, url, bytes, contentType, first)
+            return executePut(config, url, bytes, contentType, first, discoverEtag)
         } catch (e: WebDavException) {
             if (e.code != 412) throw e
         }
@@ -172,13 +181,21 @@ class WebDavClient(
         if (alternate == null) {
             throw WebDavException("Precondition failed", 412)
         }
-        val etag = executePut(config, url, bytes, contentType, alternate)
+        val etag = executePut(config, url, bytes, contentType, alternate, discoverEtag)
         if (isUnquotedHeader(alternate)) {
             unquotedIfMatchHosts.add(url.host)
         } else {
             unquotedIfMatchHosts.remove(url.host)
         }
         return etag
+    }
+
+    /**
+     * Depth-1 PROPFIND of a collection, keyed by [cursorKey] (and the
+     * trailing-slash variant) so a batch of PUTs can fill ETags in one round-trip.
+     */
+    fun listEtags(config: WebDavConfig, directory: HttpUrl): Map<String, String> {
+        return etagsFromListing(propfind(config, directory, depth = 1))
     }
 
     /**
@@ -227,6 +244,7 @@ class WebDavClient(
         bytes: ByteArray,
         contentType: String,
         ifMatchHeader: String?,
+        discoverEtag: Boolean,
     ): String? {
         val builder = Request.Builder()
             .url(url)
@@ -246,8 +264,9 @@ class WebDavClient(
             normalizeEtag(response.header("ETag"))
         }
         if (fromResponse != null) return fromResponse
-        // Nutstore PUT is 204 with no ETag. Read the new validator so the next
-        // update can send If-Match instead of wiping the stored tag.
+        // Nutstore PUT is 204 with no ETag. A caller that can fill many ETags
+        // with one directory PROPFIND passes discoverEtag = false.
+        if (!discoverEtag) return null
         return normalizeEtag(discoverRawEtag(config, url))
     }
 
@@ -454,6 +473,18 @@ class WebDavClient(
         }
 
         fun cursorKey(url: HttpUrl): String = url.encodedPath
+
+        fun etagsFromListing(resources: List<DavResource>): Map<String, String> {
+            val found = linkedMapOf<String, String>()
+            for (resource in resources) {
+                val tag = normalizeEtag(resource.rawEtag ?: resource.etag) ?: continue
+                val key = cursorKey(resource.url)
+                found[key] = tag
+                val trimmed = key.trimEnd('/')
+                if (trimmed.isNotEmpty() && trimmed != key) found[trimmed] = tag
+            }
+            return found
+        }
 
         fun davRootUrl(davRoot: String): HttpUrl {
             val trimmed = davRoot.trim().ifBlank { error("davRoot") }

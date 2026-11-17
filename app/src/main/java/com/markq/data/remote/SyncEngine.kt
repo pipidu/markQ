@@ -8,6 +8,7 @@ import com.markq.core.MarkEntry
 import com.markq.core.MarkTemplate
 import com.markq.core.SyncConflict
 import com.markq.core.SyncErrors
+import com.markq.core.SyncPush
 import com.markq.core.TemplateMerge
 import com.markq.core.TombstoneGc
 import com.markq.data.local.AttachmentDao
@@ -55,6 +56,7 @@ class SyncEngine(
     suspend fun testConnection(config: WebDavConfig) = withContext(Dispatchers.IO) {
         dav.ensureLayout(config)
         dav.probe(config)
+        settings.setLayoutReadyFor(config.baseUrl)
     }
 
     suspend fun sync(): Result<Unit> = mutex.withLock {
@@ -65,9 +67,13 @@ class SyncEngine(
         }
         val config = cfg.toWebDavConfig()
         _state.value = _state.value.copy(running = true, error = null, lastSuccessEpochMs = cfg.lastSyncEpochMs)
+        dav.loadUnquotedIfMatchHosts(settings.unquotedIfMatchHosts())
         try {
             withContext(Dispatchers.IO) {
-                dav.ensureLayout(config)
+                if (SyncPush.shouldEnsureLayout(settings.layoutReadyFor(), config.baseUrl)) {
+                    dav.ensureLayout(config)
+                    settings.setLayoutReadyFor(config.baseUrl)
+                }
                 pull(config)
                 pullTemplates(config)
                 push(config)
@@ -85,6 +91,9 @@ class SyncEngine(
             )
             Result.success(Unit)
         } catch (e: Exception) {
+            if (e is WebDavException && (e.code == 404 || e.code == 409)) {
+                settings.setLayoutReadyFor(null)
+            }
             val silent = (e is WebDavException && e.code == 412) || SyncErrors.isSilent(e)
             _state.value = _state.value.copy(
                 running = false,
@@ -92,6 +101,8 @@ class SyncEngine(
                 pendingCount = pendingCount(),
             )
             if (silent) Result.success(Unit) else Result.failure(e)
+        } finally {
+            settings.setUnquotedIfMatchHosts(dav.unquotedIfMatchHosts())
         }
     }
 
@@ -117,6 +128,7 @@ class SyncEngine(
     }
 
     private suspend fun pullAttachments(config: WebDavConfig, remote: MarkEntry) {
+        if (!SyncPush.shouldEnsureFilesPath(remote.attachments.isNotEmpty())) return
         dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", remote.id))
         for (att in remote.attachments) {
             val local = files.locate(remote.id, att.id, att.sha256)
@@ -201,7 +213,19 @@ class SyncEngine(
         }
     }
 
+    private data class PendingPushAck(
+        val id: String,
+        val url: HttpUrl,
+        val directory: HttpUrl,
+        val contentUpdatedAt: Long,
+        val statusUpdatedAt: Long,
+        val etag: String?,
+        val fallbackEtag: String?,
+        val isTemplate: Boolean,
+    )
+
     private suspend fun push(config: WebDavConfig) {
+        val pending = mutableListOf<PendingPushAck>()
         for (row in entries.getDirty()) {
             try {
                 val model = row.toModel()
@@ -217,8 +241,8 @@ class SyncEngine(
                     entries.upsert(merged.toEntity(dirty = true, remoteEtag = got.etag))
                     json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
                 }
-                entries.upsert(merged.toEntity(dirty = true, remoteEtag = etag))
                 var cursorEtag = etag
+                var uploaded = merged
                 when (SyncConflict.filesFollowMergedEntry(model.deleted, merged.deleted)) {
                     SyncConflict.FileAction.DeleteRemoteFiles -> {
                         runCatching { dav.deleteCollection(config, dav.filesEntryUrl(config, model.id)) }
@@ -226,14 +250,19 @@ class SyncEngine(
                     SyncConflict.FileAction.UploadAttachments -> {
                         val changed = pushAttachments(config, model.id)
                         if (changed) {
-                            val latestRow = entries.get(model.id) ?: continue
+                            val latestRow = entries.get(model.id)
+                            if (latestRow == null) {
+                                pending += entryAck(config, url, uploaded, cursorEtag, row.entry.remoteEtag)
+                                continue
+                            }
                             val latest = latestRow.toModel()
                             merged = latest
+                            uploaded = latest
                             val latestBody = json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(latest))
                                 .toByteArray(Charsets.UTF_8)
                             val match = SyncConflict.followUpIfMatch(
-                                latestRow.entry.remoteEtag,
-                                if (latestRow.entry.remoteEtag.isNullOrBlank()) {
+                                cursorEtag,
+                                if (cursorEtag.isNullOrBlank()) {
                                     WebDavClient.normalizeEtag(dav.rawEtag(config, url))
                                 } else {
                                     null
@@ -254,18 +283,34 @@ class SyncEngine(
                                 json.encodeToString(RemoteEntry.serializer(), RemoteEntry.from(merged))
                                     .toByteArray(Charsets.UTF_8) to got.etag
                             }
+                            uploaded = merged
                         }
                     }
                 }
-                val path = WebDavClient.cursorKey(url)
-                val pushedEtag = cursorEtag?.takeIf { it.isNotBlank() } ?: row.entry.remoteEtag
-                entries.markPushed(model.id, dirty = false, etag = pushedEtag)
-                cursors.upsert(SyncCursorEntity(path, pushedEtag, Instant.now().toString()))
+                pending += entryAck(config, url, uploaded, cursorEtag, row.entry.remoteEtag)
             } catch (e: WebDavException) {
                 if (e.code == 412) continue else throw e
             }
         }
+        acknowledgePushes(config, pending)
     }
+
+    private fun entryAck(
+        config: WebDavConfig,
+        url: HttpUrl,
+        uploaded: MarkEntry,
+        etag: String?,
+        fallbackEtag: String?,
+    ) = PendingPushAck(
+        id = uploaded.id,
+        url = url,
+        directory = dav.entriesUrl(config),
+        contentUpdatedAt = uploaded.contentUpdatedAt.toEpochMilli(),
+        statusUpdatedAt = uploaded.statusUpdatedAt.toEpochMilli(),
+        etag = etag,
+        fallbackEtag = fallbackEtag,
+        isTemplate = false,
+    )
 
     /**
      * Uploads dirty blobs for an entry the merge kept alive.
@@ -274,21 +319,37 @@ class SyncEngine(
     private suspend fun pushAttachments(config: WebDavConfig, entryId: String): Boolean {
         val current = entries.get(entryId) ?: return false
         if (current.entry.deleted) return false
-        dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", entryId))
         val liveIds = current.toModel().attachments.map { it.id }.toSet()
+        val dirty = attachments.forEntry(entryId).filter { it.dirty && it.id in liveIds }
+        if (dirty.isEmpty()) return false
+        dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", entryId))
         var changed = false
-        for (att in attachments.forEntry(entryId).filter { it.dirty && it.id in liveIds }) {
+        val pending = mutableListOf<Pair<String, HttpUrl>>()
+        val known = mutableMapOf<String, String?>()
+        for (att in dirty) {
             val bytes = files.readBytes(entryId, att.id, att.sha256) ?: continue
             val url = dav.attachmentUrl(config, entryId, att.id)
             val contentType = att.mime.ifBlank { "application/octet-stream" }
             try {
-                val etag = dav.put(config, url, bytes, contentType, att.remoteEtag)
-                attachments.markPushed(att.id, etag)
+                val etag = dav.put(config, url, bytes, contentType, att.remoteEtag, discoverEtag = false)
+                pending += att.id to url
+                known[att.id] = etag
             } catch (e: WebDavException) {
                 if (e.code != 412) throw e
                 if (resolveAttachmentConflict(config, entryId, att, bytes, url, contentType)) {
                     changed = true
                 }
+            }
+        }
+        if (pending.isNotEmpty()) {
+            val listed = if (pending.any { known[it.first].isNullOrBlank() }) {
+                runCatching { dav.listEtags(config, dav.filesEntryUrl(config, entryId)) }.getOrDefault(emptyMap())
+            } else {
+                emptyMap()
+            }
+            for ((id, url) in pending) {
+                val etag = known[id]?.takeIf { it.isNotBlank() } ?: listed[WebDavClient.cursorKey(url)]
+                attachments.markPushed(id, etag)
             }
         }
         return changed
@@ -419,7 +480,7 @@ class SyncEngine(
                 ifMatch = ifMatch,
                 put = { payload, match ->
                     try {
-                        dav.put(config, url, payload, contentType, match)
+                        dav.put(config, url, payload, contentType, match, discoverEtag = false)
                     } catch (e: WebDavException) {
                         if (e.code == 412) throw ConditionalPut.PreconditionFailed() else throw e
                     }
@@ -523,27 +584,56 @@ class SyncEngine(
     }
 
     private suspend fun pushTemplates(config: WebDavConfig) {
-        dav.ensurePath(config, dav.templatesUrl(config))
+        val pending = mutableListOf<PendingPushAck>()
         for (row in templates.getDirty()) {
             try {
                 val model = row.toModel()
+                var uploaded = model
                 val url = dav.templateUrl(config, model.id)
                 val body = json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(model))
                     .toByteArray(Charsets.UTF_8)
                 val etag = putWithRetry(config, url, body, "application/json; charset=utf-8", row.remoteEtag) {
                     val got = dav.get(config, url)
                     val remote = json.decodeFromString(RemoteTemplate.serializer(), got.bytes.toString(Charsets.UTF_8)).toModel()
-                    val merged = TemplateMerge.merge(model, remote)
-                    templates.upsert(merged.toEntity(dirty = true, remoteEtag = got.etag))
-                    json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(merged)).toByteArray(Charsets.UTF_8) to got.etag
+                    val localNow = templates.get(model.id)?.toModel() ?: model
+                    uploaded = TemplateMerge.merge(localNow, remote)
+                    templates.upsert(uploaded.toEntity(dirty = true, remoteEtag = got.etag))
+                    json.encodeToString(RemoteTemplate.serializer(), RemoteTemplate.from(uploaded)).toByteArray(Charsets.UTF_8) to got.etag
                 }
-                val path = WebDavClient.cursorKey(url)
-                val pushedEtag = etag?.takeIf { it.isNotBlank() } ?: row.remoteEtag
-                templates.markPushed(model.id, dirty = false, etag = pushedEtag)
-                cursors.upsert(SyncCursorEntity(path, pushedEtag, Instant.now().toString()))
+                pending += PendingPushAck(
+                    id = uploaded.id,
+                    url = url,
+                    directory = dav.templatesUrl(config),
+                    contentUpdatedAt = uploaded.contentUpdatedAt.toEpochMilli(),
+                    statusUpdatedAt = uploaded.statusUpdatedAt.toEpochMilli(),
+                    etag = etag,
+                    fallbackEtag = row.remoteEtag,
+                    isTemplate = true,
+                )
             } catch (e: WebDavException) {
                 if (e.code == 412) continue else throw e
             }
+        }
+        acknowledgePushes(config, pending)
+    }
+
+    private suspend fun acknowledgePushes(config: WebDavConfig, pending: List<PendingPushAck>) {
+        if (pending.isEmpty()) return
+        val found = mutableMapOf<String, String>()
+        for (directory in pending.filter { it.etag.isNullOrBlank() }.map { it.directory }.distinct()) {
+            runCatching { found.putAll(dav.listEtags(config, directory)) }
+        }
+        for (ack in pending) {
+            val pushedEtag = ack.etag?.takeIf { it.isNotBlank() }
+                ?: found[WebDavClient.cursorKey(ack.url)]
+                ?: found[WebDavClient.cursorKey(ack.url).trimEnd('/')]
+                ?: ack.fallbackEtag
+            if (ack.isTemplate) {
+                templates.markPushed(ack.id, pushedEtag, ack.contentUpdatedAt, ack.statusUpdatedAt)
+            } else {
+                entries.markPushed(ack.id, pushedEtag, ack.contentUpdatedAt, ack.statusUpdatedAt)
+            }
+            cursors.upsert(SyncCursorEntity(WebDavClient.cursorKey(ack.url), pushedEtag, Instant.now().toString()))
         }
     }
 }

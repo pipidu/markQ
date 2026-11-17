@@ -35,7 +35,12 @@ object ImageWebp {
     }
 
     private fun decodeOriented(src: File): Bitmap? {
-        val bitmap = BitmapFactory.decodeFile(src.absolutePath) ?: return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(src.absolutePath, bounds)
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = ImageNames.inSampleSize(bounds.outWidth, bounds.outHeight)
+        }
+        val bitmap = BitmapFactory.decodeFile(src.absolutePath, opts) ?: return null
         val rotation = runCatching {
             when (ExifInterface(src.absolutePath).getAttributeInt(
                 ExifInterface.TAG_ORIENTATION,

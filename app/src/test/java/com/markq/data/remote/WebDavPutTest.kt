@@ -1,6 +1,7 @@
 package com.markq.data.remote
 
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -81,7 +82,90 @@ class WebDavPutTest {
         }
     }
 
-    private fun withServer(stub: DavStub, block: (MockWebServer, WebDavClient) -> Unit) {
+    @Test
+    fun deferredEtagDiscoverySkipsPerFileHead() {
+        val stub = DavStub(etag = "token", body = "old".toByteArray(), acceptQuoted = true)
+        withServer(stub) { server, client ->
+            val etag = client.put(
+                config(server),
+                entryUrl(server),
+                "new".toByteArray(),
+                JSON,
+                "token",
+                discoverEtag = false,
+            )
+            assertEquals(null, etag)
+            assertEquals(listOf("PUT"), stub.methods)
+            assertEquals(0, stub.methods.count { it == "HEAD" || it == "PROPFIND" })
+        }
+    }
+
+    @Test
+    fun rememberedUnquotedHostSkipsTheFalse412OnColdStart() {
+        val original = "8sKBsnMc5tH71U67xjQTCQ"
+        val stub = DavStub(etag = original, body = """{"text":"old"}""".toByteArray())
+        withServer(stub) { server, client ->
+            client.loadUnquotedIfMatchHosts(setOf(server.url("/").host))
+            val updated = """{"text":"updated"}""".toByteArray()
+            client.put(config(server), entryUrl(server), updated, JSON, original)
+            assertArrayEquals(updated, stub.body)
+            assertEquals(listOf(original), stub.ifMatches)
+            assertEquals(1, stub.methods.count { it == "PUT" })
+        }
+    }
+
+    @Test
+    fun aRoundOfPutsWithoutDiscoverDoesNotProbeEachFile() {
+        val stub = MultiFileStub()
+        withServer(stub) { server, client ->
+            val cfg = config(server)
+            val urls = (1..3).map { server.url("/dav/MarkQ/entries/$it.json") }
+            val etags = urls.mapIndexed { index, url ->
+                client.put(cfg, url, "body$index".toByteArray(), JSON, ifMatch = null, discoverEtag = false)
+            }
+            assertTrue(etags.all { it == null })
+            assertEquals(3, stub.methods.count { it == "PUT" })
+            assertEquals(0, stub.methods.count { it == "HEAD" })
+            assertEquals(0, stub.methods.count { it == "PROPFIND" })
+            assertEquals(0, stub.methods.count { it == "MKCOL" })
+        }
+    }
+
+    @Test
+    fun etagsFromListingIndexPathsWithoutExtraRoundTrips() {
+        val found = WebDavClient.etagsFromListing(
+            listOf(
+                DavResource(
+                    href = "/dav/MarkQ/entries/1.json",
+                    url = "https://dav.example/dav/MarkQ/entries/1.json".toHttpUrl(),
+                    isCollection = false,
+                    etag = "e1",
+                    lastModified = null,
+                    rawEtag = "e1",
+                ),
+                DavResource(
+                    href = "/dav/MarkQ/entries/2.json",
+                    url = "https://dav.example/dav/MarkQ/entries/2.json".toHttpUrl(),
+                    isCollection = false,
+                    etag = "e2",
+                    lastModified = null,
+                ),
+                DavResource(
+                    href = "/dav/MarkQ/entries/",
+                    url = "https://dav.example/dav/MarkQ/entries/".toHttpUrl(),
+                    isCollection = true,
+                    etag = "dir",
+                    lastModified = null,
+                ),
+            ),
+        )
+        assertEquals("e1", found["/dav/MarkQ/entries/1.json"])
+        assertEquals("e2", found["/dav/MarkQ/entries/2.json"])
+        assertEquals("dir", found["/dav/MarkQ/entries/"])
+        assertEquals("dir", found["/dav/MarkQ/entries"])
+    }
+
+    private fun withServer(stub: Dispatcher, block: (MockWebServer, WebDavClient) -> Unit) {
         val server = MockWebServer()
         server.dispatcher = stub
         server.start()
@@ -89,6 +173,48 @@ class WebDavPutTest {
             block(server, WebDavClient(OkHttpClient()))
         } finally {
             server.shutdown()
+        }
+    }
+
+    private class MultiFileStub : Dispatcher() {
+        val methods = mutableListOf<String>()
+        private val etags = mutableMapOf<String, String>()
+
+        override fun dispatch(request: RecordedRequest): MockResponse {
+            methods += request.method.orEmpty()
+            val path = request.path?.substringBefore('?') ?: "/"
+            return when (request.method) {
+                "PUT" -> {
+                    val name = path.substringAfterLast('/').substringBefore(".json")
+                    etags[path] = "e$name"
+                    MockResponse().setResponseCode(204)
+                }
+                "PROPFIND" -> {
+                    val items = etags.entries.joinToString("") { (href, tag) ->
+                        """
+                          <d:response>
+                            <d:href>$href</d:href>
+                            <d:propstat>
+                              <d:prop><d:getetag>$tag</d:getetag></d:prop>
+                              <d:status>HTTP/1.1 200 OK</d:status>
+                            </d:propstat>
+                          </d:response>
+                        """
+                    }
+                    val xml = """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <d:multistatus xmlns:d="DAV:">
+                          $items
+                        </d:multistatus>
+                    """.trimIndent()
+                    MockResponse()
+                        .setResponseCode(207)
+                        .addHeader("Content-Type", "application/xml; charset=utf-8")
+                        .setBody(xml)
+                }
+                "HEAD", "MKCOL" -> MockResponse().setResponseCode(405)
+                else -> MockResponse().setResponseCode(405)
+            }
         }
     }
 

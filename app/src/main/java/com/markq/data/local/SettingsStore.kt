@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import com.markq.core.WebDavHostPrefs
 import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore by preferencesDataStore("markq_settings")
@@ -114,6 +115,28 @@ class SettingsStore(context: Context) {
         dataStore.edit { it[LINK_BASE_URL] = value.trim() }
     }
 
+    suspend fun layoutReadyFor(): String? {
+        return dataStore.data.first()[LAYOUT_READY_FOR]?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    suspend fun setLayoutReadyFor(collectionUrl: String?) {
+        dataStore.edit { prefs ->
+            val value = collectionUrl?.trim()?.takeIf { it.isNotEmpty() }
+            if (value == null) prefs.remove(LAYOUT_READY_FOR) else prefs[LAYOUT_READY_FOR] = value
+        }
+    }
+
+    suspend fun unquotedIfMatchHosts(): Set<String> {
+        return WebDavHostPrefs.decode(dataStore.data.first()[UNQUOTED_IF_MATCH_HOSTS])
+    }
+
+    suspend fun setUnquotedIfMatchHosts(hosts: Set<String>) {
+        dataStore.edit { prefs ->
+            val encoded = WebDavHostPrefs.encode(hosts)
+            if (encoded.isEmpty()) prefs.remove(UNQUOTED_IF_MATCH_HOSTS) else prefs[UNQUOTED_IF_MATCH_HOSTS] = encoded
+        }
+    }
+
     private companion object {
         val NICKNAME = stringPreferencesKey("nickname")
         val URL = stringPreferencesKey("webdav_url")
@@ -127,5 +150,7 @@ class SettingsStore(context: Context) {
         val BAR_COLOR = stringPreferencesKey("theme_bar_color")
         val BG_COLOR = stringPreferencesKey("theme_background_color")
         val FAB_COLOR = stringPreferencesKey("theme_fab_color")
+        val LAYOUT_READY_FOR = stringPreferencesKey("webdav_layout_ready_for")
+        val UNQUOTED_IF_MATCH_HOSTS = stringPreferencesKey("webdav_unquoted_if_match_hosts")
     }
 }

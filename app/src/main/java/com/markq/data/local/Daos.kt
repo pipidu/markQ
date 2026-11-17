@@ -39,8 +39,18 @@ interface EntryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: EntryEntity)
 
-    @Query("UPDATE entries SET dirty = :dirty, remoteEtag = :etag WHERE id = :id")
-    suspend fun markPushed(id: String, dirty: Boolean, etag: String?)
+    @Query(
+        """
+        UPDATE entries SET
+            remoteEtag = :etag,
+            dirty = CASE
+                WHEN contentUpdatedAt = :contentUpdatedAt AND statusUpdatedAt = :statusUpdatedAt THEN 0
+                ELSE dirty
+            END
+        WHERE id = :id
+        """,
+    )
+    suspend fun markPushed(id: String, etag: String?, contentUpdatedAt: Long, statusUpdatedAt: Long)
 
     @Query("DELETE FROM entries WHERE id = :id")
     suspend fun hardDelete(id: String)
@@ -93,8 +103,18 @@ interface TemplateDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(template: TemplateEntity)
 
-    @Query("UPDATE templates SET dirty = :dirty, remoteEtag = :etag WHERE id = :id")
-    suspend fun markPushed(id: String, dirty: Boolean, etag: String?)
+    @Query(
+        """
+        UPDATE templates SET
+            remoteEtag = :etag,
+            dirty = CASE
+                WHEN contentUpdatedAt = :contentUpdatedAt AND statusUpdatedAt = :statusUpdatedAt THEN 0
+                ELSE dirty
+            END
+        WHERE id = :id
+        """,
+    )
+    suspend fun markPushed(id: String, etag: String?, contentUpdatedAt: Long, statusUpdatedAt: Long)
 
     @Query("DELETE FROM templates WHERE id = :id")
     suspend fun hardDelete(id: String)

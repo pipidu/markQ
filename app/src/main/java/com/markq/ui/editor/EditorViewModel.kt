@@ -19,11 +19,13 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 data class DraftAttachment(
@@ -54,6 +56,7 @@ data class EditorUiState(
     val locating: Boolean = false,
     val needLocationPermission: Boolean = false,
     val busy: Boolean = false,
+    val importing: Boolean = false,
     val error: String? = null,
     val saved: Boolean = false,
     val loaded: Boolean = false,
@@ -231,47 +234,63 @@ class EditorViewModel(
 
     fun showError(message: String) = _state.update { it.copy(error = message) }
 
-    fun addCameraCapture(context: Context, file: File): Boolean {
-        try {
-            if (!file.exists() || file.length() <= 0L) return false
-            val pending = File(context.cacheDir, "pending").apply { mkdirs() }
-            val dest = File(pending, UUID.randomUUID().toString())
-            file.inputStream().use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
-            }
-            val extra = DraftAttachment(
-                key = UUID.randomUUID().toString(),
-                uri = Uri.fromFile(dest),
-                name = file.name.ifBlank { "photo.jpg" },
-                mime = "image/jpeg",
-                fromImagePicker = true,
-            )
-            _state.update { it.copy(attachments = it.attachments + extra) }
-            return true
-        } finally {
+    fun addCameraCapture(context: Context, file: File, saveAfter: Boolean = false) {
+        if (!file.exists() || file.length() <= 0L) {
             CaptureUris.deleteQuietly(file)
+            return
+        }
+        _state.update { it.copy(importing = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pending = File(context.cacheDir, "pending").apply { mkdirs() }
+                val dest = File(pending, UUID.randomUUID().toString())
+                file.inputStream().use { input ->
+                    dest.outputStream().use { output -> input.copyTo(output) }
+                }
+                val extra = DraftAttachment(
+                    key = UUID.randomUUID().toString(),
+                    uri = Uri.fromFile(dest),
+                    name = file.name.ifBlank { "photo.jpg" },
+                    mime = "image/jpeg",
+                    fromImagePicker = true,
+                )
+                _state.update { it.copy(attachments = it.attachments + extra, importing = false) }
+                if (saveAfter) save()
+            } catch (e: Exception) {
+                _state.update { it.copy(importing = false, error = e.message) }
+            } finally {
+                CaptureUris.deleteQuietly(file)
+            }
         }
     }
 
     fun addUris(context: Context, uris: List<Uri>, fromImagePicker: Boolean) {
-        val pending = File(context.cacheDir, "pending").apply { mkdirs() }
-        val extras = uris.map { uri ->
-            val name = queryName(context, uri)
-            val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
-            val dest = File(pending, UUID.randomUUID().toString())
-            context.contentResolver.openInputStream(uri).use { input ->
-                requireNotNull(input) { "Unable to read attached file" }
-                dest.outputStream().use { output -> input.copyTo(output) }
+        if (uris.isEmpty()) return
+        _state.update { it.copy(importing = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pending = File(context.cacheDir, "pending").apply { mkdirs() }
+                val extras = uris.map { uri ->
+                    val name = queryName(context, uri)
+                    val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                    val dest = File(pending, UUID.randomUUID().toString())
+                    context.contentResolver.openInputStream(uri).use { input ->
+                        requireNotNull(input) { "Unable to read attached file" }
+                        dest.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    DraftAttachment(
+                        key = UUID.randomUUID().toString(),
+                        uri = Uri.fromFile(dest),
+                        name = name,
+                        mime = mime,
+                        fromImagePicker = fromImagePicker,
+                    )
+                }
+                _state.update { it.copy(attachments = it.attachments + extras, importing = false) }
+            } catch (e: Exception) {
+                _state.update { it.copy(importing = false, error = e.message) }
             }
-            DraftAttachment(
-                key = UUID.randomUUID().toString(),
-                uri = Uri.fromFile(dest),
-                name = name,
-                mime = mime,
-                fromImagePicker = fromImagePicker,
-            )
         }
-        _state.update { it.copy(attachments = it.attachments + extras) }
     }
 
     fun removeAttachment(key: String) {
@@ -281,7 +300,7 @@ class EditorViewModel(
     fun save() {
         var snapshot: EditorUiState? = null
         _state.update { current ->
-            if (current.busy || current.saved) {
+            if (current.busy || current.saved || current.importing) {
                 current
             } else {
                 snapshot = current
@@ -289,7 +308,7 @@ class EditorViewModel(
             }
         }
         val s = snapshot ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val occurred = s.date.atTime(s.time).atZone(ZoneId.systemDefault()).toInstant()
             runCatching {
                 val compress = s.compressImages
