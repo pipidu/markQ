@@ -134,7 +134,6 @@ class MarkRepository(
         val now = Instant.now()
         val id = UUID.randomUUID().toString()
         val stored = storeNewAttachments(id, attachments)
-        pruneAttachmentsIfOverLimit(stored.isNotEmpty())
         val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val entry = MarkEntry(
             id = id,
@@ -156,6 +155,7 @@ class MarkRepository(
         )
         db.entries().upsert(entry.toEntity(dirty = true, remoteEtag = null))
         stored.forEach { db.attachments().upsert(it) }
+        pruneAttachmentsIfOverLimit(stored)
         persistThenSync(id)
         return id
     }
@@ -178,7 +178,6 @@ class MarkRepository(
         val now = Instant.now()
         val kept = row.attachments.filter { it.id in keepAttachmentIds }
         val added = storeNewAttachments(id, newAttachments)
-        pruneAttachmentsIfOverLimit(added.isNotEmpty())
         val all = kept + added
         val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val model = row.toModel().copy(
@@ -202,6 +201,7 @@ class MarkRepository(
             db.attachments().deleteMissing(id, all.map { it.id })
             all.forEach { db.attachments().upsert(it) }
         }
+        pruneAttachmentsIfOverLimit(added)
         persistThenSync(id)
     }
 
@@ -353,8 +353,11 @@ class MarkRepository(
         }
     }
 
-    suspend fun pruneCache(keepUpdateApk: Boolean = false) {
-        val hashes = db.attachments().allHashes().filter { it.isNotBlank() }.toSet()
+    suspend fun pruneCache(
+        keepUpdateApk: Boolean = false,
+        extraKeepHashes: Collection<String> = emptyList(),
+    ) {
+        val hashes = CacheJanitor.keepHashes(db.attachments().allHashes(), extraKeepHashes)
         CacheJanitor.prune(appContext, files, hashes, keepUpdateApk)
     }
 
@@ -367,11 +370,11 @@ class MarkRepository(
         }
     }
 
-    private suspend fun pruneAttachmentsIfOverLimit(addedFiles: Boolean) {
-        if (!addedFiles) return
+    private suspend fun pruneAttachmentsIfOverLimit(added: List<AttachmentEntity>) {
+        if (added.isEmpty()) return
         withContext(Dispatchers.IO) {
             if (CacheJanitor.shouldPruneAttachments(files.totalSize())) {
-                pruneCache()
+                pruneCache(extraKeepHashes = added.map { it.sha256 })
             }
         }
     }

@@ -11,6 +11,14 @@ object CacheJanitor {
 
     fun shouldPruneAttachments(totalBytes: Long): Boolean = totalBytes > MAX_ATTACH_BYTES
 
+    fun keepHashes(
+        dbHashes: Collection<String>,
+        pendingHashes: Collection<String> = emptyList(),
+    ): Set<String> = buildSet(dbHashes.size + pendingHashes.size) {
+        dbHashes.forEach { if (it.isNotBlank()) add(it) }
+        pendingHashes.forEach { if (it.isNotBlank()) add(it) }
+    }
+
     fun prune(
         context: Context,
         files: AttachmentStore,
