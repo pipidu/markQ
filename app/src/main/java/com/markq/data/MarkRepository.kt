@@ -41,6 +41,16 @@ class MarkRepository(
     val syncState: StateFlow<SyncUiState> = sync.state
     val entries: Flow<List<EntryWithAttachments>> = db.entries().observeActive()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeActive()
+    val incompleteTags: Flow<List<String>> = db.entries().observeIncompleteTags()
+    val hasAnyMarks: Flow<Boolean> = db.entries().observeHasAnyMarks()
+    val hasCompleted: Flow<Boolean> = db.entries().observeHasCompleted()
+
+    fun observeIncompleteEntries(): Flow<List<EntryWithAttachments>> = db.entries().observeIncomplete()
+
+    fun observeIncompleteOrIds(keptIds: List<String>): Flow<List<EntryWithAttachments>> =
+        db.entries().observeIncompleteOrIds(keptIds)
+
+    fun observeCompletedEntries(): Flow<List<EntryWithAttachments>> = db.entries().observeCompleted()
     val pendingUploadCount: Flow<Int> = combine(
         db.entries().observeDirtyCount(),
         db.templates().observeDirtyCount(),
@@ -124,6 +134,7 @@ class MarkRepository(
         val now = Instant.now()
         val id = UUID.randomUUID().toString()
         val stored = storeNewAttachments(id, attachments)
+        pruneAttachmentsIfOverLimit(stored.isNotEmpty())
         val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val entry = MarkEntry(
             id = id,
@@ -167,6 +178,7 @@ class MarkRepository(
         val now = Instant.now()
         val kept = row.attachments.filter { it.id in keepAttachmentIds }
         val added = storeNewAttachments(id, newAttachments)
+        pruneAttachmentsIfOverLimit(added.isNotEmpty())
         val all = kept + added
         val hasPlace = com.markq.core.MarkPlace.hasFix(latitude, longitude)
         val model = row.toModel().copy(
@@ -347,11 +359,20 @@ class MarkRepository(
     }
 
     private suspend fun persistThenSync(entryId: String, hintIfPending: Boolean = true) {
-        pruneCache()
+        // Full cache prune stays on startup (and after new attachments only if over the size cap).
         sync.refreshPending()
         sync.sync()
         if (hintIfPending && db.entries().get(entryId)?.entry?.dirty == true) {
             _saveHints.tryEmit(appContext.getString(R.string.saved_locally_pending_upload))
+        }
+    }
+
+    private suspend fun pruneAttachmentsIfOverLimit(addedFiles: Boolean) {
+        if (!addedFiles) return
+        withContext(Dispatchers.IO) {
+            if (CacheJanitor.shouldPruneAttachments(files.totalSize())) {
+                pruneCache()
+            }
         }
     }
 

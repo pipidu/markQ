@@ -2,18 +2,20 @@ package com.markq.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.markq.core.MarkHomeList
 import com.markq.core.MarkListFilter
-import com.markq.core.MarkListVisibility
-import com.markq.core.MarkSearch
+import com.markq.core.MarkListQuery
 import com.markq.core.MarkTags
 import com.markq.data.MarkRepository
 import com.markq.data.local.EntryWithAttachments
 import com.markq.data.remote.SyncUiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -21,11 +23,6 @@ import kotlinx.coroutines.launch
 class HomeViewModel(
     private val repo: MarkRepository,
 ) : ViewModel() {
-    private val allEntries: StateFlow<List<EntryWithAttachments>> = repo.entries.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
-        emptyList(),
-    )
     private val _listFilter = MutableStateFlow<MarkListFilter>(MarkListFilter.All)
     val listFilter: StateFlow<MarkListFilter> = _listFilter.asStateFlow()
     private val _keptVisible = MutableStateFlow<Set<String>>(emptySet())
@@ -40,39 +37,45 @@ class HomeViewModel(
     private val _saveHint = MutableStateFlow<String?>(null)
     val saveHint: StateFlow<String?> = _saveHint.asStateFlow()
 
-    val availableTags: StateFlow<List<String>> = allEntries.map { rows ->
-        rows.filter { !it.entry.completed }
-            .flatMap { MarkTags.decode(it.entry.tags) }
+    val availableTags: StateFlow<List<String>> = repo.incompleteTags.map { stored ->
+        stored.flatMap { MarkTags.decode(it) }
             .distinctBy { it.lowercase() }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val entries: StateFlow<List<EntryWithAttachments>> = combine(
-        allEntries,
         _listFilter,
         _searchQuery,
         _keptVisible,
-    ) { rows, filter, query, kept ->
-        rows.filter { row ->
-            MarkListVisibility.include(
-                completed = row.entry.completed,
-                tags = MarkTags.decode(row.entry.tags),
-                filter = filter,
-                stayVisible = row.entry.id in kept,
-            ) && MarkSearch.matches(
-                query,
-                row.entry.text,
-                MarkTags.decode(row.entry.tags),
-                row.entry.createdBy,
-                row.entry.completedBy,
-            )
+    ) { filter, query, kept ->
+        Triple(filter, query, kept)
+    }.flatMapLatest { (filter, query, kept) ->
+        val source = when (val q = MarkListQuery.forFilter(filter, kept)) {
+            MarkListQuery.Completed -> repo.observeCompletedEntries()
+            MarkListQuery.Incomplete -> repo.observeIncompleteEntries()
+            is MarkListQuery.IncompleteOrIds -> repo.observeIncompleteOrIds(q.ids)
+        }
+        source.map { rows ->
+            rows.filter { row ->
+                MarkHomeList.matches(
+                    completed = row.entry.completed,
+                    storedTags = row.entry.tags,
+                    text = row.entry.text,
+                    createdBy = row.entry.createdBy,
+                    completedBy = row.entry.completedBy,
+                    filter = filter,
+                    stayVisible = row.entry.id in kept,
+                    query = query,
+                )
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val hasAnyMarks: StateFlow<Boolean> = allEntries.map { it.isNotEmpty() }
+    val hasAnyMarks: StateFlow<Boolean> = repo.hasAnyMarks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val hasCompleted: StateFlow<Boolean> = allEntries.map { rows -> rows.any { it.entry.completed } }
+    val hasCompleted: StateFlow<Boolean> = repo.hasCompleted
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val syncState: StateFlow<SyncUiState> = repo.syncState
@@ -144,7 +147,7 @@ class HomeViewModel(
 
     fun complete(id: String) {
         viewModelScope.launch {
-            val wasCompleted = allEntries.value.any { it.entry.id == id && it.entry.completed }
+            val wasCompleted = repo.getEntry(id)?.entry?.completed == true
             val hidesCompleted = _listFilter.value !is MarkListFilter.Completed
             if (!wasCompleted && hidesCompleted) {
                 _keptVisible.value = _keptVisible.value + id

@@ -50,14 +50,22 @@ class AttachmentStore(context: Context) {
     }
 
     fun writeBytes(entryId: String, attachId: String, bytes: ByteArray): StoredFile {
-        val tmp = File(root, "tmp-${UUID.randomUUID()}")
+        return ingest { tmp -> tmp.writeBytes(bytes) }
+    }
+
+    fun newTempFile(): File = File(root, "tmp-${UUID.randomUUID()}")
+
+    fun ingest(writer: (File) -> Unit): StoredFile {
+        val tmp = newTempFile()
         try {
-            tmp.writeBytes(bytes)
-            return commitBlob(tmp, usedWebp = false)
+            writer(tmp)
+            return commitTemp(tmp)
         } finally {
             tmp.delete()
         }
     }
+
+    fun commitTemp(tmp: File): StoredFile = commitBlob(tmp, usedWebp = false)
 
     fun readBytes(entryId: String, attachId: String, sha256: String? = null): ByteArray? {
         val dest = locate(entryId, attachId, sha256)

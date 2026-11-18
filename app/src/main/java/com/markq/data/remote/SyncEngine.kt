@@ -13,6 +13,7 @@ import com.markq.core.TemplateMerge
 import com.markq.core.TombstoneGc
 import com.markq.data.local.AttachmentDao
 import com.markq.data.local.AttachmentEntity
+import com.markq.data.local.AttachmentLookup
 import com.markq.data.local.AttachmentStore
 import com.markq.data.local.CursorDao
 import com.markq.data.local.EntryDao
@@ -106,14 +107,18 @@ class SyncEngine(
         }
     }
 
+    private suspend fun cursorIndex(): Map<String, SyncCursorEntity> =
+        cursors.listAll().associateBy { it.path }
+
     private suspend fun pull(config: WebDavConfig) {
         val listing = dav.propfind(config, dav.entriesUrl(config), depth = 1)
+        val cursorsByPath = cursorIndex()
         for (resource in listing) {
             if (resource.isCollection) continue
             val name = resource.url.pathSegments.lastOrNull().orEmpty()
             if (!name.endsWith(".json")) continue
             val path = WebDavClient.cursorKey(resource.url)
-            val cursor = cursors.get(path)
+            val cursor = cursorsByPath[path]
             if (!WebDavClient.needsDownload(cursor?.etag, cursor?.lastModified, resource)) {
                 continue
             }
@@ -130,9 +135,10 @@ class SyncEngine(
     private suspend fun pullAttachments(config: WebDavConfig, remote: MarkEntry) {
         if (!SyncPush.shouldEnsureFilesPath(remote.attachments.isNotEmpty())) return
         dav.ensurePath(config, WebDavClient.join(config.baseUrl, "files", remote.id))
+        val existingById = AttachmentLookup.indexById(attachments.forEntry(remote.id))
         for (att in remote.attachments) {
             val local = files.locate(remote.id, att.id, att.sha256)
-            val existing = attachments.forEntry(remote.id).firstOrNull { it.id == att.id }
+            val existing = existingById[att.id]
             val hashOk = local.exists() && (existing?.sha256 == att.sha256 || files.blob(att.sha256).exists()) && att.sha256.isNotBlank()
             if (hashOk) {
                 if (existing == null || existing.localPath != local.absolutePath || existing.sha256 != att.sha256) {
@@ -154,12 +160,14 @@ class SyncEngine(
                 continue
             }
             val url = dav.attachmentUrl(config, remote.id, att.id)
-            val got = try {
-                dav.get(config, url)
+            var meta: WebDavClient.DownloadResult? = null
+            val stored = try {
+                files.ingest { tmp ->
+                    meta = dav.downloadTo(config, url, tmp)
+                }
             } catch (e: WebDavException) {
                 if (e.code == 404) continue else throw e
             }
-            val stored = files.writeBytes(remote.id, att.id, got.bytes)
             attachments.upsert(
                 AttachmentEntity(
                     id = att.id,
@@ -171,7 +179,7 @@ class SyncEngine(
                     sha256 = stored.sha256,
                     localPath = stored.file.absolutePath,
                     dirty = false,
-                    remoteEtag = got.etag,
+                    remoteEtag = meta?.etag,
                 ),
             )
         }
@@ -192,8 +200,9 @@ class SyncEngine(
             attachments.deleteForEntry(merged.id)
         } else {
             attachments.deleteMissing(merged.id, keep)
+            val existingById = AttachmentLookup.indexById(attachments.forEntry(merged.id))
             merged.attachments.forEach { att ->
-                val existing = attachments.forEntry(merged.id).firstOrNull { it.id == att.id }
+                val existing = existingById[att.id]
                 attachments.upsert(
                     AttachmentEntity(
                         id = att.id,
@@ -368,8 +377,10 @@ class SyncEngine(
         url: HttpUrl,
         contentType: String,
     ): Boolean {
+        val tmp = files.newTempFile()
+        try {
         val got = try {
-            dav.get(config, url)
+            dav.downloadTo(config, url, tmp)
         } catch (e: WebDavException) {
             if (e.code != 404) throw e
             val outcome = SyncConflict.resolveAttachment412(
@@ -386,7 +397,7 @@ class SyncEngine(
             attachments.markPushed(att.id, etag)
             return false
         }
-        val remoteSha = FileSha256.of(got.bytes)
+        val remoteSha = if (tmp.exists()) files.sha256(tmp) else FileSha256.of(ByteArray(0))
         val forkId = UUID.randomUUID().toString()
         when (
             val outcome = SyncConflict.resolveAttachment412(
@@ -405,7 +416,7 @@ class SyncEngine(
                 throw WebDavException("Precondition failed", 412)
             }
             is SyncConflict.AttachmentConflict.KeepRemoteAndForkLocal -> {
-                val storedRemote = files.writeBytes(entryId, att.id, got.bytes)
+                val storedRemote = files.commitTemp(tmp)
                 attachments.upsert(
                     att.copy(
                         size = storedRemote.size,
@@ -463,6 +474,9 @@ class SyncEngine(
                 }
                 return true
             }
+        }
+        } finally {
+            tmp.delete()
         }
     }
 
@@ -555,12 +569,13 @@ class SyncEngine(
         } catch (e: WebDavException) {
             if (e.code == 404) return else throw e
         }
+        val cursorsByPath = cursorIndex()
         for (resource in listing) {
             if (resource.isCollection) continue
             val name = resource.url.pathSegments.lastOrNull().orEmpty()
             if (!name.endsWith(".json")) continue
             val path = WebDavClient.cursorKey(resource.url)
-            val cursor = cursors.get(path)
+            val cursor = cursorsByPath[path]
             if (!WebDavClient.needsDownload(cursor?.etag, cursor?.lastModified, resource)) {
                 continue
             }

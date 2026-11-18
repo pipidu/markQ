@@ -14,6 +14,27 @@ interface EntryDao {
     fun observeActive(): Flow<List<EntryWithAttachments>>
 
     @Transaction
+    @Query("SELECT * FROM entries WHERE deleted = 0 AND completed = 0 ORDER BY occurredAt DESC")
+    fun observeIncomplete(): Flow<List<EntryWithAttachments>>
+
+    @Transaction
+    @Query("SELECT * FROM entries WHERE deleted = 0 AND (completed = 0 OR id IN (:keptIds)) ORDER BY occurredAt DESC")
+    fun observeIncompleteOrIds(keptIds: List<String>): Flow<List<EntryWithAttachments>>
+
+    @Transaction
+    @Query("SELECT * FROM entries WHERE deleted = 0 AND completed = 1 ORDER BY occurredAt DESC")
+    fun observeCompleted(): Flow<List<EntryWithAttachments>>
+
+    @Query("SELECT tags FROM entries WHERE deleted = 0 AND completed = 0")
+    fun observeIncompleteTags(): Flow<List<String>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM entries WHERE deleted = 0)")
+    fun observeHasAnyMarks(): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM entries WHERE deleted = 0 AND completed = 1)")
+    fun observeHasCompleted(): Flow<Boolean>
+
+    @Transaction
     @Query("SELECT * FROM entries WHERE id = :id")
     fun observeById(id: String): Flow<EntryWithAttachments?>
 
@@ -124,6 +145,9 @@ interface TemplateDao {
 interface CursorDao {
     @Query("SELECT * FROM sync_cursors WHERE path = :path")
     suspend fun get(path: String): SyncCursorEntity?
+
+    @Query("SELECT * FROM sync_cursors")
+    suspend fun listAll(): List<SyncCursorEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(cursor: SyncCursorEntity)

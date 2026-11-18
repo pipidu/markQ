@@ -9,6 +9,8 @@ object CacheJanitor {
     const val MAX_PENDING_AGE_MS = 24L * 60 * 60 * 1000
     const val MAX_IMAGE_CACHE_BYTES = 48L * 1024 * 1024
 
+    fun shouldPruneAttachments(totalBytes: Long): Boolean = totalBytes > MAX_ATTACH_BYTES
+
     fun prune(
         context: Context,
         files: AttachmentStore,

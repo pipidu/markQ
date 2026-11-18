@@ -1,6 +1,7 @@
 package com.markq.data.remote
 
 import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import okhttp3.Credentials
@@ -132,6 +133,8 @@ class WebDavClient(
 
     data class GetResult(val bytes: ByteArray, val etag: String?, val lastModified: String?)
 
+    data class DownloadResult(val etag: String?, val lastModified: String?)
+
     fun get(config: WebDavConfig, url: HttpUrl): GetResult {
         val request = authorized(config, Request.Builder().url(url).get())
         http.newCall(request).execute().use { response ->
@@ -141,6 +144,28 @@ class WebDavClient(
             val bytes = response.body?.bytes() ?: ByteArray(0)
             return GetResult(
                 bytes = bytes,
+                etag = normalizeEtag(response.header("ETag")),
+                lastModified = response.header("Last-Modified"),
+            )
+        }
+    }
+
+    fun downloadTo(config: WebDavConfig, url: HttpUrl, dest: File): DownloadResult {
+        val request = authorized(config, Request.Builder().url(url).get())
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw WebDavException("GET ${url.encodedPath} failed (${response.code})", response.code)
+            }
+            dest.parentFile?.mkdirs()
+            val body = response.body
+            if (body == null) {
+                dest.writeBytes(ByteArray(0))
+            } else {
+                body.byteStream().use { input ->
+                    dest.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+            return DownloadResult(
                 etag = normalizeEtag(response.header("ETag")),
                 lastModified = response.header("Last-Modified"),
             )
